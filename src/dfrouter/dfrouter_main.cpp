@@ -24,11 +24,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #ifdef HAVE_VERSION_H
 #include <version.h>
@@ -126,7 +122,7 @@ startComputation(RODFNet* optNet, RODFDetectorFlows& flows, RODFDetectorCon& det
     }
 
     // if a network was loaded... (mode1)
-    if (optNet != 0) {
+    if (optNet != nullptr) {
         if (oc.getBool("remove-empty-detectors")) {
             PROGRESS_BEGIN_MESSAGE("Removing empty detectors");
             optNet->removeEmptyDetectors(detectors, flows);
@@ -259,9 +255,9 @@ main(int argc, char** argv) {
     oc.setApplicationDescription("Builds vehicle routes for SUMO using detector values.");
     oc.setApplicationName("dfrouter", "Eclipse SUMO dfrouter Version " VERSION_STRING);
     int ret = 0;
-    RODFNet* net = 0;
-    RODFDetectorCon* detectors = 0;
-    RODFDetectorFlows* flows = 0;
+    RODFNet* net = nullptr;
+    RODFDetectorCon* detectors = nullptr;
+    RODFDetectorFlows* flows = nullptr;
     try {
         // initialise the application system (messaging, xml, options)
         XMLSubSys::init();

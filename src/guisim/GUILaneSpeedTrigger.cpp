@@ -19,11 +19,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <utils/common/MsgHandler.h>
@@ -92,7 +88,7 @@ GUILaneSpeedTrigger::GUIManip_LaneSpeedTrigger::GUIManip_LaneSpeedTrigger(
     const std::string& name, GUILaneSpeedTrigger& o,
     int /*xpos*/, int /*ypos*/)
     : GUIManipulator(app, name, 0, 0),
-      myParent(&app), myChosenValue(0), myChosenTarget(myChosenValue, NULL, MID_OPTION),
+      myParent(&app), myChosenValue(0), myChosenTarget(myChosenValue, nullptr, MID_OPTION),
       mySpeed(o.getDefaultSpeed()), mySpeedTarget(mySpeed),
       myObject(&o) {
     myChosenTarget.setTarget(this);
@@ -149,7 +145,7 @@ GUILaneSpeedTrigger::GUIManip_LaneSpeedTrigger::GUIManip_LaneSpeedTrigger(
                           0, 0, 0, 0,   2, 2, 0, 0);
         myUserDefinedSpeed =
             new FXRealSpinner(gf12, 10, this, MID_USER_DEF,
-                               LAYOUT_TOP | FRAME_SUNKEN | FRAME_THICK);
+                              LAYOUT_TOP | FRAME_SUNKEN | FRAME_THICK);
         //myUserDefinedSpeed->setFormatString("%.0f km/h");
         //myUserDefinedSpeed->setIncrements(1, 10, 10);
         myUserDefinedSpeed->setIncrement(10);
@@ -157,7 +153,7 @@ GUILaneSpeedTrigger::GUIManip_LaneSpeedTrigger::GUIManip_LaneSpeedTrigger(
         myUserDefinedSpeed->setValue(
             static_cast<GUILaneSpeedTrigger*>(myObject)->getDefaultSpeed() * 3.6);
     }
-    new FXButton(f1, "Close", NULL, this, MID_CLOSE,
+    new FXButton(f1, "Close", nullptr, this, MID_CLOSE,
                  BUTTON_INITIAL | BUTTON_DEFAULT | FRAME_RAISED | FRAME_THICK | LAYOUT_TOP | LAYOUT_LEFT | LAYOUT_CENTER_X, 0, 0, 0, 0, 30, 30, 4, 4);
     static_cast<GUILaneSpeedTrigger*>(myObject)->setOverriding(true);
 }

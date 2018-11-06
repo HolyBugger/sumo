@@ -20,11 +20,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <iostream>
@@ -64,7 +60,7 @@ OptionsIO::setArgs(int argc, char** argv) {
 
 void
 OptionsIO::setArgs(const std::vector<std::string>& args) {
-    char* const app = myArgC > 0 ? myArgV[0] : 0;
+    char* const app = myArgC > 0 ? myArgV[0] : nullptr;
     myArgC = (int)args.size() + 1;
     char** argv = new char* [myArgC];
     argv[0] = app;

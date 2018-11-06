@@ -20,11 +20,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <ctime>
 #include <utils/options/OptionsCont.h>
@@ -36,6 +32,8 @@
 // static member variables
 // ===========================================================================
 std::mt19937 RandHelper::myRandomNumberGenerator;
+int RandHelper::myCallCount(0);
+int RandHelper::myDebugIndex(7);
 
 
 // ===========================================================================
@@ -59,11 +57,11 @@ RandHelper::insertRandOptions() {
 
 void
 RandHelper::initRand(std::mt19937* which, const bool random, const int seed) {
-    if (which == 0) {
+    if (which == nullptr) {
         which = &myRandomNumberGenerator;
     }
     if (random) {
-        which->seed((unsigned long)time(0));
+        which->seed((unsigned long)time(nullptr));
     } else {
         which->seed(seed);
     }

@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <microsim/MSGlobals.h>
 #include <microsim/MSNet.h>
@@ -47,6 +43,7 @@
 bool MSDevice_Vehroutes::mySaveExits = false;
 bool MSDevice_Vehroutes::myLastRouteOnly = false;
 bool MSDevice_Vehroutes::myDUAStyle = false;
+bool MSDevice_Vehroutes::myWriteCosts = false;
 bool MSDevice_Vehroutes::mySorted = false;
 bool MSDevice_Vehroutes::myIntendedDepart = false;
 bool MSDevice_Vehroutes::myRouteLength = false;
@@ -64,22 +61,24 @@ std::map<const SUMOTime, std::map<const std::string, std::string> > MSDevice_Veh
 // ---------------------------------------------------------------------------
 void
 MSDevice_Vehroutes::init() {
-    if (OptionsCont::getOptions().isSet("vehroute-output")) {
+    const OptionsCont& oc = OptionsCont::getOptions();
+    if (oc.isSet("vehroute-output")) {
         OutputDevice::createDeviceByOption("vehroute-output", "routes", "routes_file.xsd");
-        mySaveExits = OptionsCont::getOptions().getBool("vehroute-output.exit-times");
-        myLastRouteOnly = OptionsCont::getOptions().getBool("vehroute-output.last-route");
-        myDUAStyle = OptionsCont::getOptions().getBool("vehroute-output.dua");
-        mySorted = myDUAStyle || OptionsCont::getOptions().getBool("vehroute-output.sorted");
-        myIntendedDepart = OptionsCont::getOptions().getBool("vehroute-output.intended-depart");
-        myRouteLength = OptionsCont::getOptions().getBool("vehroute-output.route-length");
-        mySkipPTLines = OptionsCont::getOptions().getBool("vehroute-output.skip-ptlines");
+        mySaveExits = oc.getBool("vehroute-output.exit-times");
+        myLastRouteOnly = oc.getBool("vehroute-output.last-route");
+        myDUAStyle = oc.getBool("vehroute-output.dua");
+        myWriteCosts = oc.getBool("vehroute-output.cost");
+        mySorted = myDUAStyle || oc.getBool("vehroute-output.sorted");
+        myIntendedDepart = oc.getBool("vehroute-output.intended-depart");
+        myRouteLength = oc.getBool("vehroute-output.route-length");
+        mySkipPTLines = oc.getBool("vehroute-output.skip-ptlines");
         MSNet::getInstance()->addVehicleStateListener(&myStateListener);
     }
 }
 
 
 MSDevice_Vehroutes*
-MSDevice_Vehroutes::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into, int maxRoutes) {
+MSDevice_Vehroutes::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into, int maxRoutes) {
     if (maxRoutes < std::numeric_limits<int>::max()) {
         return new MSDevice_Vehroutes(v, "vehroute_" + v.getID(), maxRoutes);
     }
@@ -91,7 +90,7 @@ MSDevice_Vehroutes::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& 
         into.push_back(myStateListener.myDevices[&v]);
         return myStateListener.myDevices[&v];
     }
-    return 0;
+    return nullptr;
 }
 
 
@@ -99,9 +98,9 @@ MSDevice_Vehroutes::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& 
 // MSDevice_Vehroutes::StateListener-methods
 // ---------------------------------------------------------------------------
 void
-MSDevice_Vehroutes::StateListener::vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to) {
+MSDevice_Vehroutes::StateListener::vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to, const std::string& info) {
     if (to == MSNet::VEHICLE_STATE_NEWROUTE) {
-        myDevices[vehicle]->addRoute();
+        myDevices[vehicle]->addRoute(info);
     }
 }
 
@@ -110,10 +109,10 @@ MSDevice_Vehroutes::StateListener::vehicleStateChanged(const SUMOVehicle* const 
 // MSDevice_Vehroutes-methods
 // ---------------------------------------------------------------------------
 MSDevice_Vehroutes::MSDevice_Vehroutes(SUMOVehicle& holder, const std::string& id, int maxRoutes) :
-    MSDevice(holder, id),
+    MSVehicleDevice(holder, id),
     myCurrentRoute(&holder.getRoute()),
     myMaxRoutes(maxRoutes),
-    myLastSavedAt(0),
+    myLastSavedAt(nullptr),
     myDepartLane(-1),
     myDepartPos(-1),
     myDepartSpeed(-1),
@@ -165,8 +164,8 @@ MSDevice_Vehroutes::notifyLeave(SUMOVehicle& veh, double /*lastPos*/, MSMoveRemi
 
 
 void
-MSDevice_Vehroutes::stopEnded(const MSVehicle::Stop& stop) {
-    stop.pars.write(myStopOut);
+MSDevice_Vehroutes::stopEnded(const SUMOVehicleParameter::Stop& stop) {
+    stop.write(myStopOut);
 }
 
 
@@ -181,27 +180,42 @@ MSDevice_Vehroutes::writeXMLRoute(OutputDevice& os, int index) const {
     os.openTag(SUMO_TAG_ROUTE);
     if (index >= 0) {
         assert((int)myReplacedRoutes.size() > index);
-        // write edge on which the vehicle was when the route was valid
-        os << " replacedOnEdge=\"";
-        if (myReplacedRoutes[index].edge) {
-            os << myReplacedRoutes[index].edge->getID();
+        if (myDUAStyle || myWriteCosts) {
+            os.writeAttr(SUMO_ATTR_COST, myReplacedRoutes[index].route->getCosts());
         }
+        if (myWriteCosts) {
+            os.writeAttr(SUMO_ATTR_SAVINGS, myReplacedRoutes[index].route->getSavings());
+        }
+        // write edge on which the vehicle was when the route was valid
+        os.writeAttr("replacedOnEdge", (myReplacedRoutes[index].edge ?
+                                        myReplacedRoutes[index].edge->getID() : ""));
+        // write the reason for replacement
+        os.writeAttr("reason", myReplacedRoutes[index].info);
+
         // write the time at which the route was replaced
-        os << "\" replacedAtTime=\"" << time2string(myReplacedRoutes[index].time) << "\" probability=\"0\" edges=\"";
+        os.writeAttr("replacedAtTime", time2string(myReplacedRoutes[index].time));
+        os.writeAttr(SUMO_ATTR_PROB, "0");
+        os << " edges=\"";
         // get the route
         int i = index;
         while (i > 0 && myReplacedRoutes[i - 1].edge) {
             i--;
         }
-        const MSEdge* lastEdge = 0;
+        const MSEdge* lastEdge = nullptr;
         for (; i < index; ++i) {
             myReplacedRoutes[i].route->writeEdgeIDs(os, lastEdge, myReplacedRoutes[i].edge);
             lastEdge = myReplacedRoutes[i].edge;
         }
         myReplacedRoutes[index].route->writeEdgeIDs(os, lastEdge);
     } else {
+        if (myDUAStyle || myWriteCosts) {
+            os.writeAttr(SUMO_ATTR_COST, myHolder.getRoute().getCosts());
+        }
+        if (myWriteCosts) {
+            os.writeAttr(SUMO_ATTR_SAVINGS, myHolder.getRoute().getSavings());
+        }
         os << " edges=\"";
-        const MSEdge* lastEdge = 0;
+        const MSEdge* lastEdge = nullptr;
         int numWritten = 0;
         if (myHolder.getNumberReroutes() > 0) {
             assert((int)myReplacedRoutes.size() <= myHolder.getNumberReroutes());
@@ -214,7 +228,7 @@ MSDevice_Vehroutes::writeXMLRoute(OutputDevice& os, int index) const {
                 lastEdge = myReplacedRoutes[i].edge;
             }
         }
-        const MSEdge* upTo = 0;
+        const MSEdge* upTo = nullptr;
         if (mySaveExits) {
             int remainingWithExitTime = (int)myExits.size() - numWritten;
             assert(remainingWithExitTime >= 0);
@@ -284,7 +298,7 @@ MSDevice_Vehroutes::writeOutput(const bool hasArrived) const {
     }
     if (myDUAStyle) {
         const RandomDistributor<const MSRoute*>* const routeDist = MSRoute::distDictionary("!" + myHolder.getID());
-        if (routeDist != 0) {
+        if (routeDist != nullptr) {
             const std::vector<const MSRoute*>& routes = routeDist->getVals();
             unsigned index = 0;
             while (index < routes.size() && routes[index] != myCurrentRoute) {
@@ -294,7 +308,11 @@ MSDevice_Vehroutes::writeOutput(const bool hasArrived) const {
             const std::vector<double>& probs = routeDist->getProbs();
             for (int i = 0; i < (int)routes.size(); ++i) {
                 od.setPrecision();
-                od.openTag(SUMO_TAG_ROUTE).writeAttr(SUMO_ATTR_COST, routes[i]->getCosts());
+                od.openTag(SUMO_TAG_ROUTE);
+                od.writeAttr(SUMO_ATTR_COST, routes[i]->getCosts());
+                if (myWriteCosts) {
+                    od.writeAttr(SUMO_ATTR_SAVINGS, routes[i]->getSavings());
+                }
                 od.setPrecision(8);
                 od.writeAttr(SUMO_ATTR_PROB, probs[i]);
                 od.setPrecision();
@@ -316,15 +334,6 @@ MSDevice_Vehroutes::writeOutput(const bool hasArrived) const {
         writeXMLRoute(od);
         if (myReplacedRoutes.size() > 0) {
             od.closeTag();
-        }
-    }
-    if (MSGlobals::gUseMesoSim) {
-        // stopEnded is never called by mesosim
-        for (std::vector<SUMOVehicleParameter::Stop>::const_iterator i = myHolder.getRoute().getStops().begin(); i != myHolder.getRoute().getStops().end(); ++i) {
-            i->write(od);
-        }
-        for (std::vector<SUMOVehicleParameter::Stop>::const_iterator i = myHolder.getParameter().stops.begin(); i != myHolder.getParameter().stops.end(); ++i) {
-            i->write(od);
         }
     }
     od << myStopOut.getString();
@@ -355,18 +364,18 @@ MSDevice_Vehroutes::getRoute(int index) const {
     if (index < (int)myReplacedRoutes.size()) {
         return myReplacedRoutes[index].route;
     } else {
-        return 0;
+        return nullptr;
     }
 }
 
 
 void
-MSDevice_Vehroutes::addRoute() {
+MSDevice_Vehroutes::addRoute(const std::string& info) {
     if (myMaxRoutes > 0) {
         if (myHolder.hasDeparted()) {
-            myReplacedRoutes.push_back(RouteReplaceInfo(myHolder.getEdge(), MSNet::getInstance()->getCurrentTimeStep(), myCurrentRoute));
+            myReplacedRoutes.push_back(RouteReplaceInfo(myHolder.getEdge(), MSNet::getInstance()->getCurrentTimeStep(), myCurrentRoute, info));
         } else {
-            myReplacedRoutes.push_back(RouteReplaceInfo(0, MSNet::getInstance()->getCurrentTimeStep(), myCurrentRoute));
+            myReplacedRoutes.push_back(RouteReplaceInfo(nullptr, MSNet::getInstance()->getCurrentTimeStep(), myCurrentRoute, info));
         }
         if ((int)myReplacedRoutes.size() > myMaxRoutes) {
             myReplacedRoutes.front().route->release();
@@ -382,7 +391,7 @@ MSDevice_Vehroutes::addRoute() {
 
 void
 MSDevice_Vehroutes::generateOutputForUnfinished() {
-    for (std::map<const SUMOVehicle*, MSDevice_Vehroutes*, Named::NamedLikeComparatorIdLess<SUMOVehicle> >::const_iterator it = myStateListener.myDevices.begin();
+    for (std::map<const SUMOVehicle*, MSDevice_Vehroutes*, ComparatorIdLess >::const_iterator it = myStateListener.myDevices.begin();
             it != myStateListener.myDevices.end(); ++it) {
         if (it->first->hasDeparted()) {
             it->second->writeOutput(false);
@@ -404,10 +413,11 @@ MSDevice_Vehroutes::saveState(OutputDevice& out) const {
     internals.push_back(toString(myDepartPos));
     internals.push_back(toString(myReplacedRoutes.size()));
     for (int i = 0; i < (int)myReplacedRoutes.size(); ++i) {
-        const std::string replacedOnEdge = myReplacedRoutes[i].edge == 0 ? "!NULL" : myReplacedRoutes[i].edge->getID();
+        const std::string replacedOnEdge = myReplacedRoutes[i].edge == nullptr ? "!NULL" : myReplacedRoutes[i].edge->getID();
         internals.push_back(replacedOnEdge);
         internals.push_back(toString(myReplacedRoutes[i].time));
         internals.push_back(myReplacedRoutes[i].route->getID());
+        internals.push_back(myReplacedRoutes[i].info);
     }
     out.writeAttr(SUMO_ATTR_STATE, toString(internals));
     out.closeTag();
@@ -429,10 +439,12 @@ MSDevice_Vehroutes::loadState(const SUMOSAXAttributes& attrs) {
         std::string edgeID;
         SUMOTime time;
         std::string routeID;
+        std::string info;
         bis >> edgeID;
         bis >> time;
         bis >> routeID;
-        myReplacedRoutes.push_back(RouteReplaceInfo(MSEdge::dictionary(edgeID), time, MSRoute::dictionary(routeID)));
+        bis >> info;
+        myReplacedRoutes.push_back(RouteReplaceInfo(MSEdge::dictionary(edgeID), time, MSRoute::dictionary(routeID), info));
     }
 }
 

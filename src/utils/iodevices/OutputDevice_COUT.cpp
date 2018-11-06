@@ -20,11 +20,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <iostream>
 #include "OutputDevice_COUT.h"
@@ -33,7 +29,7 @@
 // ===========================================================================
 // static member definitions
 // ===========================================================================
-OutputDevice* OutputDevice_COUT::myInstance = 0;
+OutputDevice* OutputDevice_COUT::myInstance = nullptr;
 
 
 // ===========================================================================
@@ -42,7 +38,7 @@ OutputDevice* OutputDevice_COUT::myInstance = 0;
 OutputDevice*
 OutputDevice_COUT::getDevice() {
     // check whether the device has already been aqcuired
-    if (myInstance == 0) {
+    if (myInstance == nullptr) {
         myInstance = new OutputDevice_COUT();
     }
     return myInstance;
@@ -52,11 +48,13 @@ OutputDevice_COUT::getDevice() {
 // ===========================================================================
 // method definitions
 // ===========================================================================
-OutputDevice_COUT::OutputDevice_COUT() {}
+OutputDevice_COUT::OutputDevice_COUT() {
+    myFilename = "COUT";
+}
 
 
 OutputDevice_COUT::~OutputDevice_COUT() {
-    myInstance = 0;
+    myInstance = nullptr;
 }
 
 

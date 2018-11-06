@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/emissions/PollutantsInterface.h>
@@ -58,7 +54,7 @@ MSEmissionExport::write(OutputDevice& of, SUMOTime timestep, int precision) {
             of.writeAttr("PMx", emiss.PMx).writeAttr("fuel", emiss.fuel).writeAttr("electricity", emiss.electricity);
             of.writeAttr("noise", HelpersHarmonoise::computeNoise(veh->getVehicleType().getEmissionClass(), veh->getSpeed(), veh->getAcceleration()));
             of.writeAttr("route", veh->getRoute().getID()).writeAttr("type", fclass);
-            if (microVeh != 0) {
+            if (microVeh != nullptr) {
                 of.writeAttr("waiting", microVeh->getWaitingSeconds());
                 of.writeAttr("lane", microVeh->getLane()->getID());
             }

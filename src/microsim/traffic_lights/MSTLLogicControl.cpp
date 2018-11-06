@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <vector>
 #include <algorithm>
@@ -51,7 +47,7 @@
  * MSTLLogicControl::TLSLogicVariants - methods
  * ----------------------------------------------------------------------- */
 MSTLLogicControl::TLSLogicVariants::TLSLogicVariants()
-    : myCurrentProgram(0) {
+    : myCurrentProgram(nullptr) {
 }
 
 
@@ -102,7 +98,7 @@ MSTLLogicControl::TLSLogicVariants::addLogic(const std::string& programID,
     // assert the links are set
     if (netWasLoaded) {
         // this one has not yet its links set
-        if (myCurrentProgram == 0) {
+        if (myCurrentProgram == nullptr) {
             throw ProcessError("No initial signal plan loaded for tls '" + logic->getID() + "'.");
         }
         logic->adaptLinkInformationFrom(*myCurrentProgram);
@@ -127,7 +123,7 @@ MSTLLogicControl::TLSLogicVariants::addLogic(const std::string& programID,
 MSTrafficLightLogic*
 MSTLLogicControl::TLSLogicVariants::getLogic(const std::string& programID) const {
     if (myVariants.find(programID) == myVariants.end()) {
-        return 0;
+        return nullptr;
     }
     return myVariants.find(programID)->second;
 }
@@ -157,16 +153,17 @@ MSTLLogicControl::TLSLogicVariants::setStateInstantiatingOnline(MSTLLogicControl
         const std::string& state) {
     // build only once...
     MSTrafficLightLogic* logic = getLogic("online");
-    if (logic == 0) {
-        MSPhaseDefinition* phase = new MSPhaseDefinition(DELTA_T, state);
+    if (logic == nullptr) {
+        MSPhaseDefinition* phase = new MSPhaseDefinition(DELTA_T, state, -1);
         std::vector<MSPhaseDefinition*> phases;
         phases.push_back(phase);
-        logic = new MSSimpleTrafficLightLogic(tlc, myCurrentProgram->getID(), "online", phases, 0,
+        logic = new MSSimpleTrafficLightLogic(tlc, myCurrentProgram->getID(), "online", TLTYPE_STATIC, phases, 0,
                                               MSNet::getInstance()->getCurrentTimeStep() + DELTA_T,
                                               std::map<std::string, std::string>());
         addLogic("online", logic, true, true);
+        MSNet::getInstance()->createTLWrapper(logic);
     } else {
-        MSPhaseDefinition nphase(DELTA_T, state);
+        MSPhaseDefinition nphase(DELTA_T, state, -1);
         *(dynamic_cast<MSSimpleTrafficLightLogic*>(logic)->getPhases()[0]) = nphase;
         switchTo(tlc, "online");
     }
@@ -591,7 +588,7 @@ MSTrafficLightLogic*
 MSTLLogicControl::get(const std::string& id, const std::string& programID) const {
     std::map<std::string, TLSLogicVariants*>::const_iterator i = myLogics.find(id);
     if (i == myLogics.end()) {
-        return 0;
+        return nullptr;
     }
     return (*i).second->getLogic(programID);
 }
@@ -655,7 +652,7 @@ MSTrafficLightLogic*
 MSTLLogicControl::getActive(const std::string& id) const {
     std::map<std::string, TLSLogicVariants*>::const_iterator i = myLogics.find(id);
     if (i == myLogics.end()) {
-        return 0;
+        return nullptr;
     }
     return (*i).second->getActive();
 }
@@ -787,7 +784,7 @@ MSTLLogicControl::initWautSwitch(MSTLLogicControl::SwitchInitCommand& cmd) {
         TLSLogicVariants* vars = myLogics.find((*i).junction)->second;
         MSTrafficLightLogic* from = vars->getActive();
         MSTrafficLightLogic* to = vars->getLogicInstantiatingOff(*this, s.to);
-        WAUTSwitchProcedure* proc = 0;
+        WAUTSwitchProcedure* proc = nullptr;
         if ((*i).procedure == "GSP") {
             proc = new WAUTSwitchProcedure_GSP(*this, *myWAUTs[wautid], from, to, (*i).synchron);
         } else if ((*i).procedure == "Stretch") {

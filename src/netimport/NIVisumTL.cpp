@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <utils/options/OptionsCont.h>
@@ -78,7 +74,7 @@ void
 NIVisumTL::build(NBEdgeCont& ec, NBTrafficLightLogicCont& tlc) {
     for (std::vector<NBNode*>::iterator ni = myNodes.begin(); ni != myNodes.end(); ni++) {
         NBNode* node = (*ni);
-        if (node == 0) {
+        if (node == nullptr) {
             WRITE_WARNING("invalid node for traffic light '" + myName + "'");
             continue;
         }

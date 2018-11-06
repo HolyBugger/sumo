@@ -30,7 +30,7 @@
 // ****************************************
 // VERSION
 // ****************************************
-#define TRACI_VERSION 19
+#define TRACI_VERSION 18
 
 // ****************************************
 // COMMANDS
@@ -50,6 +50,9 @@
 // command: stop node
 #define CMD_STOP 0x12
 
+// command: reroute to parking area
+#define CMD_REROUTE_TO_PARKING 0xc2
+
 // command: Resume from parking
 #define CMD_RESUME 0x19
 
@@ -62,11 +65,17 @@
 // command: set sublane (vehicle)
 #define CMD_CHANGESUBLANE 0x15
 
+// command: open gap
+#define CMD_OPENGAP 0x16
+
 // command: change target
 #define CMD_CHANGETARGET 0x31
 
 // command: close sumo
 #define CMD_CLOSE 0x7F
+
+// command: add subscription filter
+#define CMD_ADD_SUBSCRIPTION_FILTER 0x7e
 
 
 // command: subscribe induction loop (e1) context
@@ -307,8 +316,6 @@
 // ****************************************
 // DATA TYPES
 // ****************************************
-// Boundary Box (4 doubles)
-#define TYPE_BOUNDINGBOX 0x05
 // Polygon (2*n doubles)
 #define TYPE_POLYGON 0x06
 // unsigned byte
@@ -317,14 +324,10 @@
 #define TYPE_BYTE 0x08
 // 32 bit signed integer
 #define TYPE_INTEGER 0x09
-// float
-#define TYPE_FLOAT 0x0A
 // double
 #define TYPE_DOUBLE 0x0B
 // 8 bit ASCII string
 #define TYPE_STRING 0x0C
-// list of traffic light phases
-#define TYPE_TLPHASELIST 0x0D
 // list of strings
 #define TYPE_STRINGLIST 0x0E
 // compound object
@@ -343,26 +346,15 @@
 // result type: error
 #define RTYPE_ERR 0xFF
 
-// return value for invalid queries (especially vehicle is not on the road)
-#define INVALID_DOUBLE_VALUE -1001.
-// return value for invalid queries (especially vehicle is not on the road)
-#define INVALID_INT_VALUE -1
-// maximum value for client ordering (2 ^ 30 - 1)
-#define MAX_ORDER 1073741823
-
 // ****************************************
-// TRAFFIC LIGHT PHASES
+// special return or parameter values
 // ****************************************
-// red phase
-#define TLPHASE_RED 0x01
-// yellow phase
-#define TLPHASE_YELLOW 0x02
-// green phase
-#define TLPHASE_GREEN 0x03
-// tl is blinking
-#define TLPHASE_BLINKING 0x04
-// tl is off and not blinking
-#define TLPHASE_NOSIGNAL 0x05
+// return value for invalid queries (especially vehicle is not on the road), see Position::INVALID
+#define INVALID_DOUBLE_VALUE -1073741824
+// return value for invalid queries (especially vehicle is not on the road), see Position::INVALID
+#define INVALID_INT_VALUE -1073741824
+// maximum value for client ordering (2 ^ 30)
+#define MAX_ORDER 1073741824
 
 
 // ****************************************
@@ -447,6 +439,45 @@
 #define ROUTING_MODE_DEFAULT 0x00
 // use aggregated travel times from device.rerouting
 #define ROUTING_MODE_AGGREGATED 0x01
+// use loaded efforts
+#define ROUTING_MODE_EFFORT 0x02
+// use combined costs
+#define ROUTING_MODE_COMBINED 0x03
+
+// ****************************************
+// FILTER TYPES (for context subscription filters)
+// ****************************************
+
+// Reset all filters
+#define FILTER_TYPE_NONE 0x00
+
+// Filter by list of lanes relative to ego vehicle
+#define FILTER_TYPE_LANES 0x01
+
+// Exclude vehicles on opposite (and other) lanes from context subscription result
+#define FILTER_TYPE_NOOPPOSITE 0x02
+
+// Specify maximal downstream distance for vehicles in context subscription result
+#define FILTER_TYPE_DOWNSTREAM_DIST 0x03
+
+// Specify maximal upstream distance for vehicles in context subscription result
+#define FILTER_TYPE_UPSTREAM_DIST 0x04
+
+// Only return leader and follower on the specified lanes in context subscription result
+#define FILTER_TYPE_LEAD_FOLLOW 0x05
+
+// Only return foes on upcoming junction in context subscription result
+#define FILTER_TYPE_TURN 0x07
+
+// Only return vehicles of the given vClass in context subscription result
+#define FILTER_TYPE_VCLASS 0x08
+
+// Only return vehicles of the given vType in context subscription result
+#define FILTER_TYPE_VTYPE 0x09
+
+
+
+
 
 // ****************************************
 // VARIABLE TYPES (for CMD_GET_*_VARIABLE)
@@ -496,9 +527,11 @@
 // last step jam length in meters
 #define JAM_LENGTH_METERS 0x19
 
-// last step person list (get: edges)
+// last step person list (get: edges, vehicles)
 #define LAST_STEP_PERSON_ID_LIST 0x1a
 
+// full name (get: edges, simulation)
+#define VAR_NAME 0x1b
 
 // traffic light states, encoded as rRgGyYoO tuple (get: traffic lights)
 #define TL_RED_YELLOW_GREEN_STATE 0x20
@@ -614,7 +647,7 @@
 // minimum gap (get: vehicle types)
 #define VAR_MINGAP 0x4c
 
-// width (get: vehicle types, lanes)
+// width (get: vehicle types, lanes, polygons)
 #define VAR_WIDTH 0x4d
 
 // shape (get: polygons)
@@ -637,6 +670,9 @@
 
 // edges (get: routes, vehicles)
 #define VAR_EDGES 0x54
+
+// update bestLanes (set: vehicle)
+#define VAR_UPDATE_BESTLANES 0x6a
 
 // filled? (get: polygons)
 #define VAR_FILL 0x55
@@ -759,8 +795,14 @@
 // upcoming traffic lights (get: vehicle)
 #define VAR_NEXT_TLS 0x70
 
+// upcoming stops (get: vehicle)
+#define VAR_NEXT_STOPS 0x73
+
 // current acceleration (get: vehicle)
 #define VAR_ACCELERATION 0x72
+
+// current time in seconds (get: simulation)
+#define VAR_TIME 0x66
 
 // current time step (get: simulation)
 #define VAR_TIME_STEP 0x70
@@ -836,6 +878,12 @@
 
 // ids of vehicles involved in a collision (get: simulation)
 #define VAR_COLLIDING_VEHICLES_IDS 0x81
+
+// number of vehicles involved in a collision (get: simulation)
+#define VAR_EMERGENCYSTOPPING_VEHICLES_NUMBER 0x89
+
+// ids of vehicles involved in a collision (get: simulation)
+#define VAR_EMERGENCYSTOPPING_VEHICLES_IDS 0x8a
 
 // clears the simulation of all not inserted vehicles (set: simulation)
 #define CMD_CLEAR_PENDING_VEHICLES 0x94

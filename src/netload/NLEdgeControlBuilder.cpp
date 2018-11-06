@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <vector>
 #include <string>
@@ -50,7 +46,7 @@
 // ===========================================================================
 NLEdgeControlBuilder::NLEdgeControlBuilder()
     : myCurrentNumericalLaneID(0), myCurrentNumericalEdgeID(0), myEdges(0), myCurrentLaneIndex(-1) {
-    myActiveEdge = (MSEdge*) 0;
+    myActiveEdge = (MSEdge*) nullptr;
     myLaneStorage = new std::vector<MSLane*>();
 }
 
@@ -69,7 +65,7 @@ NLEdgeControlBuilder::beginEdgeParsing(
     // closeEdge might not have been called because the last edge had an error, so we clear the lane storage
     myLaneStorage->clear();
     myActiveEdge = buildEdge(id, function, streetName, edgeType, priority);
-    if (MSEdge::dictionary(id) != 0) {
+    if (MSEdge::dictionary(id) != nullptr) {
         throw InvalidArgument("Another edge with the id '" + id + "' exists.");
     }
     myEdges.push_back(myActiveEdge);
@@ -103,7 +99,7 @@ NLEdgeControlBuilder::addStopOffsets(const std::map<SVCPermissions, double>& sto
 std::string
 NLEdgeControlBuilder::reportCurrentEdgeOrLane() const {
     std::stringstream ss;
-    if (myCurrentLaneIndex!=-1) {
+    if (myCurrentLaneIndex != -1) {
         ss << "lane " << myCurrentLaneIndex << " of ";
     }
     ss << "edge '" << myActiveEdge->getID() << "'";
@@ -113,8 +109,8 @@ NLEdgeControlBuilder::reportCurrentEdgeOrLane() const {
 
 void
 NLEdgeControlBuilder::updateCurrentLaneStopOffsets(const std::map<SVCPermissions, double>& stopOffsets) {
-    assert(myLaneStorage->size()!=0);
-    if (stopOffsets.size()==0) {
+    assert(myLaneStorage->size() != 0);
+    if (stopOffsets.size() == 0) {
         return;
     }
     if (myLaneStorage->back()->getStopOffsets().size() != 0) {
@@ -141,12 +137,12 @@ NLEdgeControlBuilder::setDefaultStopOffsets(std::map<SVCPermissions, double> sto
 
 void
 NLEdgeControlBuilder::applyDefaultStopOffsetsToLanes() {
-    assert(myActiveEdge!=0);
-    if (myCurrentDefaultStopOffsets.size()==0) {
+    assert(myActiveEdge != 0);
+    if (myCurrentDefaultStopOffsets.size() == 0) {
         return;
     }
     for (MSLane* l : *myLaneStorage) {
-        if (l->getStopOffsets().size() == 0){
+        if (l->getStopOffsets().size() == 0) {
             l->setStopOffsets(myCurrentDefaultStopOffsets);
         }
     }
@@ -174,7 +170,7 @@ NLEdgeControlBuilder::closeEdge() {
 
 void
 NLEdgeControlBuilder::closeLane() {
-    myCurrentLaneIndex=-1;
+    myCurrentLaneIndex = -1;
 }
 
 

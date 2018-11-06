@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <cassert>
 #include <string>
@@ -58,7 +54,7 @@ GUIRunThread::GUIRunThread(FXApp* app, MFXInterThreadEventClient* parent,
                            double& simDelay, MFXEventQue<GUIEvent*>& eq,
                            FXEX::FXThreadEvent& ev)
     : FXSingleEventThread(app, parent),
-      myNet(0), myHalting(true), myQuit(false), mySimulationInProgress(false), myOk(true), myHaveSignaledEnd(false),
+      myNet(nullptr), myHalting(true), myQuit(false), mySimulationInProgress(false), myOk(true), myHaveSignaledEnd(false),
       mySimDelay(simDelay), myEventQue(eq), myEventThrow(ev) {
     myErrorRetriever = new MsgRetrievingFunction<GUIRunThread>(this, &GUIRunThread::retrieveMessage, MsgHandler::MT_ERROR);
     myMessageRetriever = new MsgRetrievingFunction<GUIRunThread>(this, &GUIRunThread::retrieveMessage, MsgHandler::MT_MESSAGE);
@@ -74,7 +70,7 @@ GUIRunThread::~GUIRunThread() {
     delete myMessageRetriever;
     delete myWarningRetriever;
     // wait for the thread
-    while (mySimulationInProgress || myNet != 0);
+    while (mySimulationInProgress || myNet != nullptr);
 }
 
 
@@ -124,12 +120,10 @@ GUIRunThread::run() {
     // perform an endless loop
     while (!myQuit) {
         // if the simulation shall be perfomed, do it
-        if (!myHalting && myNet != 0 && myOk) {
-            if (getNet().logSimulationDuration()) {
-                beg = SysUtils::getCurrentMillis();
-                if (end != -1) {
-                    getNet().setIdleDuration((int)(beg - end));
-                }
+        if (!myHalting && myNet != nullptr && myOk) {
+            beg = SysUtils::getCurrentMillis();
+            if (end != -1) {
+                getNet().setIdleDuration((int)(beg - end));
             }
             // check whether we shall stop at this step
             myBreakpointLock.lock();
@@ -142,13 +136,11 @@ GUIRunThread::run() {
             if (haltAfter) {
                 stop();
             }
-            // wait if wanted
-            long wait = (long)mySimDelay;
-            if (getNet().logSimulationDuration()) {
-                end = SysUtils::getCurrentMillis();
-                getNet().setSimDuration((int)(end - beg));
-                wait -= (end - beg);
-            }
+            // wait if wanted (delay is per simulated second)
+            long wait = (long)(mySimDelay * TS);
+            end = SysUtils::getCurrentMillis();
+            getNet().setSimDuration((int)(end - beg));
+            wait -= (end - beg);
             if (wait > 0) {
                 sleep(wait);
             }
@@ -165,7 +157,7 @@ GUIRunThread::run() {
 
 void
 GUIRunThread::makeStep() {
-    GUIEvent* e = 0;
+    GUIEvent* e = nullptr;
     // simulation is being perfomed
     mySimulationInProgress = true;
     // execute a single step
@@ -180,13 +172,13 @@ GUIRunThread::makeStep() {
         myEventQue.add(e);
         myEventThrow.signal();
 
-        e = 0;
+        e = nullptr;
         MSNet::SimulationState state = myNet->simulationState(mySimEndTime);
         if (state == MSNet::SIMSTATE_LOADING) {
             OptionsIO::setArgs(TraCIServer::getInstance()->getLoadArgs());
             TraCIServer::getInstance()->getLoadArgs().clear();
         } else if (state != MSNet::SIMSTATE_RUNNING) {
-            if (TraCIServer::getInstance() != 0 && !TraCIServer::wasClosed()) {
+            if (TraCIServer::getInstance() != nullptr && !TraCIServer::wasClosed()) {
                 state = MSNet::SIMSTATE_RUNNING;
             }
         }
@@ -200,13 +192,16 @@ GUIRunThread::makeStep() {
                     WRITE_MESSAGE("Simulation ended at time: " + time2string(myNet->getCurrentTimeStep()));
                     WRITE_MESSAGE("Reason: " + MSNet::getStateMessage(state));
                     e = new GUIEvent_SimulationEnded(state, myNet->getCurrentTimeStep() - DELTA_T);
+                    // ensure that files are closed (deleteSim is called a bit later by the gui thread)
+                    // MSNet destructor may trigger MsgHandler (via routing device cleanup). Closing output devices here is not safe
+                    // OutputDevice::closeAll();
                     myHaveSignaledEnd = true;
                 }
                 break;
             default:
                 break;
         }
-        if (e != 0) {
+        if (e != nullptr) {
             myEventQue.add(e);
             myEventThrow.signal();
             myHalting = true;
@@ -275,7 +270,7 @@ GUIRunThread::stop() {
 
 bool
 GUIRunThread::simulationAvailable() const {
-    return myNet != 0;
+    return myNet != nullptr;
 }
 
 
@@ -288,13 +283,13 @@ GUIRunThread::deleteSim() {
     MsgHandler::getMessageInstance()->removeRetriever(myMessageRetriever);
     //
     mySimulationLock.lock();
-    if (myNet != 0) {
+    if (myNet != nullptr) {
         myNet->closeSimulation(mySimStartTime);
     }
     while (mySimulationInProgress);
     delete myNet;
     GUIGlObjectStorage::gIDStorage.clear();
-    myNet = 0;
+    myNet = nullptr;
     OutputDevice::closeAll();
     mySimulationLock.unlock();
     MsgHandler::cleanupOnEnd();
@@ -324,19 +319,19 @@ GUIRunThread::retrieveMessage(const MsgHandler::MsgType type, const std::string&
 
 bool
 GUIRunThread::simulationIsStartable() const {
-    return myNet != 0 && myHalting;
+    return myNet != nullptr && myHalting;
 }
 
 
 bool
 GUIRunThread::simulationIsStopable() const {
-    return myNet != 0 && (!myHalting);
+    return myNet != nullptr && (!myHalting);
 }
 
 
 bool
 GUIRunThread::simulationIsStepable() const {
-    return myNet != 0 && myHalting;
+    return myNet != nullptr && myHalting;
 }
 
 

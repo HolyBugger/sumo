@@ -18,11 +18,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <iostream>
@@ -40,24 +36,34 @@
 #include <utils/gui/windows/GUIAppEnum.h>
 #include <utils/gui/images/GUITexturesHelper.h>
 #include <utils/xml/SUMOSAXHandler.h>
-
-#include "GNEDetector.h"
 #include <netedit/netelements/GNELane.h>
 #include <netedit/changes/GNEChange_Attribute.h>
 #include <netedit/GNEUndoList.h>
 #include <netedit/GNENet.h>
 #include <netedit/GNEViewNet.h>
 
+#include "GNEDetector.h"
+
 
 // ===========================================================================
 // member method definitions
 // ===========================================================================
 
-GNEDetector::GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GUIIcon icon, GNELane* lane,
-                         double pos, double freq, const std::string& filename, bool friendlyPos, GNEAdditional* additionalParent, bool blockMovement) :
-    GNEAdditional(id, viewNet, type, tag, icon, true, blockMovement, additionalParent),
-    myLane(lane),
-    myPositionOverLane(pos / lane->getLaneParametricLength()),
+GNEDetector::GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag,
+                         double pos, double freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement) :
+    GNEAdditional(id, viewNet, type, tag, name, blockMovement),
+    myPositionOverLane(pos),
+    myFreq(freq),
+    myFilename(filename),
+    myVehicleTypes(vehicleTypes),
+    myFriendlyPosition(friendlyPos) {
+}
+
+
+GNEDetector::GNEDetector(GNEAdditional* additionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag,
+                         double pos, double freq, const std::string& filename, const std::string& name, bool friendlyPos, bool blockMovement) :
+    GNEAdditional(additionalParent, viewNet, type, tag, name, blockMovement),
+    myPositionOverLane(pos),
     myFreq(freq),
     myFilename(filename),
     myFriendlyPosition(friendlyPos) {
@@ -67,51 +73,39 @@ GNEDetector::GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObject
 GNEDetector::~GNEDetector() {}
 
 
-GNELane*
-GNEDetector::getLane() const {
-    return myLane;
-}
-
-
 double
-GNEDetector::getAbsolutePositionOverLane() const {
-    return myPositionOverLane * myLane->getLaneParametricLength();
-}
-
-
-void
-GNEDetector::moveGeometry(const Position& oldPos, const Position& offset) {
-    // Calculate new position using old position
-    Position newPosition = oldPos;
-    newPosition.add(offset);
-    myPositionOverLane = myLane->getShape().nearest_offset_to_point2D(newPosition, false) / myLane->getLaneShapeLength();
-    // Update geometry
-    updateGeometry();
-}
-
-
-void
-GNEDetector::commitGeometryMoving(const Position& oldPos, GNEUndoList* undoList) {
-    if (!myBlockMovement) {
-        // restore old position before commit new position
-        double originalPosOverLane = myLane->getShape().nearest_offset_to_point2D(oldPos, false);
-        undoList->p_begin("position of " + toString(getTag()));
-        undoList->p_add(new GNEChange_Attribute(this, SUMO_ATTR_POSITION, toString(myPositionOverLane * myLane->getLaneParametricLength()), true, toString(originalPosOverLane)));
-        undoList->p_end();
-    }
+GNEDetector::getPositionOverLane() const {
+    return myPositionOverLane;
 }
 
 
 Position
 GNEDetector::getPositionInView() const {
-    return myLane->getShape().positionAtOffset(myPositionOverLane * myLane->getShape().length());
+    if (myPositionOverLane < 0) {
+        return getLane()->getShape().front();
+    } else if (myPositionOverLane > getLane()->getShape().length()) {
+        return getLane()->getShape().back();
+    } else {
+        return getLane()->getShape().positionAtOffset(myPositionOverLane);
+    }
 }
 
 
-const std::string&
+std::string
 GNEDetector::getParentName() const {
-    return myLane->getMicrosimID();
+    return getLane()->getMicrosimID();
 }
 
+
+std::string
+GNEDetector::getPopUpID() const {
+    return getTagStr() + ": " + getID();
+}
+
+
+std::string
+GNEDetector::getHierarchyName() const {
+    return getTagStr();
+}
 
 /****************************************************************************/

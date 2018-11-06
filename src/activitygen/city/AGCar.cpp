@@ -24,11 +24,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <iostream>
 #include <sstream>
@@ -49,7 +45,7 @@ AGCar::createName(int idHH, int idCar) {
 
 bool
 AGCar::associateTo(AGAdult* pers) {
-    if (currentUser == NULL) {
+    if (currentUser == nullptr) {
         currentUser = pers;
         return true;
     }
@@ -58,7 +54,7 @@ AGCar::associateTo(AGAdult* pers) {
 
 bool
 AGCar::isAssociated() const {
-    return (currentUser != NULL);
+    return (currentUser != nullptr);
 }
 
 std::string

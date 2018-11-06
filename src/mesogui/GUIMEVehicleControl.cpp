@@ -19,11 +19,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/foxtools/MFXMutex.h>
 #include <utils/vehicle/SUMOVehicle.h>
@@ -53,7 +49,7 @@ GUIMEVehicleControl::buildVehicle(SUMOVehicleParameter* defs,
                                   const MSRoute* route, MSVehicleType* type,
                                   const bool ignoreStopErrors, const bool fromRouteFile) {
     myLoadedVehNo++;
-    MSBaseVehicle* built = new GUIMEVehicle(defs, route, type, type->computeChosenSpeedDeviation(fromRouteFile ? MSRouteHandler::getParsingRNG() : 0));
+    MSBaseVehicle* built = new GUIMEVehicle(defs, route, type, type->computeChosenSpeedDeviation(fromRouteFile ? MSRouteHandler::getParsingRNG() : nullptr));
     built->addStops(ignoreStopErrors);
     MSNet::getInstance()->informVehicleStateListener(built, MSNet::VEHICLE_STATE_BUILT);
     return built;

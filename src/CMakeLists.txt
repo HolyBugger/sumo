@@ -10,17 +10,12 @@ add_subdirectory(activitygen)
 add_subdirectory(dfrouter)
 add_subdirectory(duarouter)
 add_subdirectory(foreign)
-add_subdirectory(gui)
-add_subdirectory(guinetload)
-add_subdirectory(guisim)
 add_subdirectory(jtrrouter)
 add_subdirectory(libsumo)
 add_subdirectory(marouter)
-add_subdirectory(mesogui)
 add_subdirectory(mesosim)
 add_subdirectory(microsim)
 add_subdirectory(netbuild)
-add_subdirectory(netedit)
 add_subdirectory(netgen)
 add_subdirectory(netimport)
 add_subdirectory(netload)
@@ -33,59 +28,71 @@ add_subdirectory(tools)
 add_subdirectory(traci-server)
 add_subdirectory(traci_testclient)
 add_subdirectory(utils)
+if (FOX_FOUND)
+    add_subdirectory(gui)
+    add_subdirectory(guinetload)
+    add_subdirectory(guisim)
+    add_subdirectory(mesogui)
+    add_subdirectory(netedit)
+endif ()
 
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    set(sumoexec
-            sumo_main.cpp
-            microsim/MSMoveReminder.cpp microsim/MSMoveReminder.h)
+add_executable(sumo sumo_main.cpp
+        microsim/MSMoveReminder.cpp microsim/MSMoveReminder.h)
+set_target_properties(sumo PROPERTIES OUTPUT_NAME sumo${BINARY_SUFFIX})
+set_target_properties(sumo PROPERTIES OUTPUT_NAME_DEBUG sumo${BINARY_SUFFIX}D)
+target_link_libraries(sumo ${sumolibs})
+add_dependencies(sumo generate-version-h)
+
+if (FOX_FOUND)
     set(sumoguiexec
             guisim_main.cpp
             microsim/MSMoveReminder.cpp microsim/MSMoveReminder.h
             gui/GUIManipulator.h gui/GUIManipulator.cpp
             gui/GUITLLogicPhasesTrackerWindow.h gui/GUITLLogicPhasesTrackerWindow.cpp
             mesosim/MEVehicleControl.h mesosim/MEVehicleControl.cpp)
-else ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    set(sumoexec
-            sumo_main.cpp)
-    set(sumoguiexec
-            guisim_main.cpp)
-endif ()
 
-add_executable(sumo version.h ${sumoexec})
-set_target_properties(sumo PROPERTIES OUTPUT_NAME_DEBUG sumoD)
-target_link_libraries(sumo ${sumolibs})
-
-add_executable(sumo-gui version.h ${sumoguiexec} guisim.rc)
-set_target_properties(sumo-gui PROPERTIES OUTPUT_NAME_DEBUG sumo-guiD)
-target_link_libraries(sumo-gui gui guinetload guisim gui_dialogs
+    add_executable(sumo-gui ${sumoguiexec} sumo-gui.rc)
+    set_target_properties(sumo-gui PROPERTIES OUTPUT_NAME sumo-gui${BINARY_SUFFIX})
+    set_target_properties(sumo-gui PROPERTIES OUTPUT_NAME_DEBUG sumo-gui${BINARY_SUFFIX}D)
+    target_link_libraries(sumo-gui gui guinetload guisim gui_dialogs
         utils_gui_windows utils_gui_globjects utils_gui_div utils_gui_settings
         utils_gui_images utils_gui_tracker utils_foxtools osgview ${sumolibs} mesogui
         ${GDAL_LIBRARY} ${FFMPEG_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIES} ${GL2PS_LIBRARIES})
-if (MSVC)
-    set_target_properties(sumo-gui PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
-    if (FFMPEG_FOUND)
-        set_target_properties(sumo-gui PROPERTIES LINK_FLAGS "/SAFESEH:NO")
+    if (MSVC)
+        set_target_properties(sumo-gui PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+        if (FFMPEG_FOUND)
+            set_target_properties(sumo-gui PROPERTIES LINK_FLAGS "/SAFESEH:NO")
+        endif ()
+        target_link_libraries(sumo-gui opengl32 glu32)
     endif ()
-    target_link_libraries(sumo-gui opengl32 glu32)
+    add_dependencies(sumo-gui generate-version-h)
+    install(TARGETS sumo-gui RUNTIME DESTINATION bin)
 endif ()
 
-add_executable(netconvert version.h netconvert_main.cpp)
-set_target_properties(netconvert PROPERTIES OUTPUT_NAME_DEBUG netconvertD)
+add_executable(netconvert netconvert_main.cpp)
+set_target_properties(netconvert PROPERTIES OUTPUT_NAME netconvert${BINARY_SUFFIX})
+set_target_properties(netconvert PROPERTIES OUTPUT_NAME_DEBUG netconvert${BINARY_SUFFIX}D)
 target_link_libraries(netconvert ${netconvertlibs})
+add_dependencies(netconvert generate-version-h)
 
-add_executable(od2trips version.h od2trips_main.cpp)
-set_target_properties(od2trips PROPERTIES OUTPUT_NAME_DEBUG od2tripsD)
+add_executable(od2trips od2trips_main.cpp)
+set_target_properties(od2trips PROPERTIES OUTPUT_NAME od2trips${BINARY_SUFFIX})
+set_target_properties(od2trips PROPERTIES OUTPUT_NAME_DEBUG od2trips${BINARY_SUFFIX}D)
 target_link_libraries(od2trips od utils_vehicle ${commonlibs})
+add_dependencies(od2trips generate-version-h)
+
+install(TARGETS sumo netconvert od2trips RUNTIME DESTINATION bin)
 
 configure_file(config.h.cmake config.h)
 
 add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/src/version.h
-                   COMMAND ${CMAKE_SOURCE_DIR}/tools/build/version.py ${CMAKE_BINARY_DIR}/src
-#                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../.svn/wc.db
+                   COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/build/version.py ${CMAKE_BINARY_DIR}/src
                   )
 add_custom_target(generate-version-h
                   DEPENDS ${CMAKE_BINARY_DIR}/src/version.h
                  )
+set_property(TARGET generate-version-h PROPERTY FOLDER "CMake") 
+
 set_source_files_properties(${CMAKE_BINARY_DIR}/src/version.h
     PROPERTIES GENERATED TRUE)

@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include "GNEDetector.h"
 
@@ -47,27 +43,48 @@ public:
      * @param[in] pos position of the detector on the lane
      * @param[in] freq the aggregation period the values the detector collects shall be summed up.
      * @param[in] filename The path to the output file.
+     * @param[in] name E1 detector name
      * @param[in] vehicleTypes space separated list of vehicle type ids to consider
      * @param[in] friendlyPos enable or disable friendly positions
      * @param[in] block movement enable or disable additional movement
      */
-    GNEDetectorE1(const std::string& id, GNELane* lane, GNEViewNet* viewNet, double pos, double freq, const std::string& filename, const std::string& vehicleTypes, bool friendlyPos, bool blockMovement);
+    GNEDetectorE1(const std::string& id, GNELane* lane, GNEViewNet* viewNet, double pos, double freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement);
 
     /// @brief Destructor
     ~GNEDetectorE1();
 
-    /**@brief writte additional element into a xml file
-     * @param[in] device device in which write parameters of additional element
-     */
-    void writeAdditional(OutputDevice& device) const;
+    /// @name members and functions relative to write additionals into XML
+    /// @{
+    /// @brief check if current additional is valid to be writed into XML
+    bool isAdditionalValid() const;
 
-    /// @brief check if Position of detector is fixed
-    bool isDetectorPositionFixed() const;
+    /// @brief return a string with the current additional problem
+    std::string getAdditionalProblem() const;
+
+    /// @brief fix additional problem
+    void fixAdditionalProblem();
+    /// @}
+
+    /// @name inherited from GNEDetector
+    /// @{
+    /// @brief get lane
+    GNELane* getLane() const;
+    /// @}
 
     /// @name Functions related with geometry of element
     /// @{
+    /**@brief change the position of the element geometry without saving in undoList
+     * @param[in] offset Position used for calculate new position of geometry without updating RTree
+     */
+    void moveGeometry(const Position& offset);
+
+    /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
+     * @param[in] undoList The undoList on which to register changes
+     */
+    void commitGeometryMoving(GNEUndoList* undoList);
+
     /// @brief update pre-computed geometry information
-    void updateGeometry();
+    void updateGeometry(bool updateGrid);
     /// @}
 
     /// @name inherited from GUIGlObject
@@ -103,8 +120,8 @@ public:
     /// @}
 
 protected:
-    /// @brief attribute vehicle types
-    std::string myVehicleTypes;
+    /// @brief The lane in which this detector is placed
+    GNELane* myLane;
 
 private:
     /// @brief set attribute after validation

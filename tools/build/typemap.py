@@ -33,9 +33,9 @@ def writeTypeMap(typemapFile, typemap):
                       line.replace('"', r'\"').replace('\n', r'\n'), file=f)
             print(";", file=f)
 
-def generateTypeMap(relPath, formats, suffix):
+
+def generateTypeMap(typemapFile, formats, suffix):
     typemapDataDir = join(dirname(__file__), '..', '..', 'data', 'typemap')
-    typemapFile = join(dirname(__file__), '..', '..', 'src', relPath)
     typemap = {}
     maxTime = 0
     for format in formats:
@@ -47,5 +47,8 @@ def generateTypeMap(relPath, formats, suffix):
 
 
 if __name__ == "__main__":
-    generateTypeMap(join('netimport', 'typemap.h'), ("opendrive", "osm"), "Netconvert.typ.xml")
-    generateTypeMap(join('polyconvert', 'pc_typemap.h'), ("navteq", "osm", "visum"), "Polyconvert.typ.xml")
+    srcDir = join(dirname(__file__), '..', '..', 'src')
+    if len(sys.argv) > 1:
+        srcDir = sys.argv[1]
+    generateTypeMap(join(srcDir, 'netimport', 'typemap.h'), ("opendrive", "osm"), "Netconvert.typ.xml")
+    generateTypeMap(join(srcDir, 'polyconvert', 'pc_typemap.h'), ("navteq", "osm", "visum"), "Polyconvert.typ.xml")

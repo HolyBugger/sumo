@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #ifdef HAVE_VERSION_H
 #include <version.h>
@@ -58,7 +54,7 @@
 #include <polyconvert/PCTypeMap.h>
 #include <polyconvert/PCTypeDefHandler.h>
 #include <polyconvert/PCNetProjectionLoader.h>
-#include "pc_typemap.h"
+#include <polyconvert/pc_typemap.h>
 
 
 // ===========================================================================
@@ -111,6 +107,8 @@ fillOptions() {
     oc.addDescription("osm.keep-full-type", "Input", "The type will be made of the key-value - pair");
     oc.doRegister("osm.use-name", new Option_Bool(false));
     oc.addDescription("osm.use-name", "Input", "The id will be set from the given 'name' attribute");
+    oc.doRegister("osm.merge-relations", new Option_Float(-1));
+    oc.addDescription("osm.merge-relations", "Input", "If FLOAT >= 0, assemble one polygon from all ways of a relation if they all connect with gaps below FLOAT");
 
     // arcview import
     oc.doRegister("shapefile-prefixes", new Option_FileName());
@@ -267,7 +265,7 @@ main(int argc, char** argv) {
             }
             bool ok = true;
             // !!! no proper error handling
-            Boundary offsets = GeomConvHelper::parseBoundaryReporting(oc.getString("prune.in-net.offsets"), "--prune.on-net.offsets", 0, ok);
+            Boundary offsets = GeomConvHelper::parseBoundaryReporting(oc.getString("prune.in-net.offsets"), "--prune.on-net.offsets", nullptr, ok);
             pruningBoundary = Boundary(
                                   pruningBoundary.xmin() + offsets.xmin(),
                                   pruningBoundary.ymin() + offsets.ymin(),
@@ -278,7 +276,7 @@ main(int argc, char** argv) {
         if (oc.isSet("prune.boundary")) {
             bool ok = true;
             // !!! no proper error handling
-            pruningBoundary = GeomConvHelper::parseBoundaryReporting(oc.getString("prune.boundary"), "--prune.boundary", 0, ok);
+            pruningBoundary = GeomConvHelper::parseBoundaryReporting(oc.getString("prune.boundary"), "--prune.boundary", nullptr, ok);
             prune = true;
         }
         if (oc.isSet("osm-files") && oc.isDefault("poi-layer-offset")) {
@@ -290,7 +288,7 @@ main(int argc, char** argv) {
         // read in the type defaults
         if (!oc.isSet("type-file")) {
             const char* sumoPath = std::getenv("SUMO_HOME");
-            if (sumoPath == 0) {
+            if (sumoPath == nullptr) {
                 WRITE_WARNING("Environment variable SUMO_HOME is not set, using built in type maps.");
             } else {
                 const std::string path = sumoPath + std::string("/data/typemap/");

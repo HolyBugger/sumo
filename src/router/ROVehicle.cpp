@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/common/TplConvert.h>
 #include <utils/common/ToString.h>
@@ -51,7 +47,7 @@ ROVehicle::ROVehicle(const SUMOVehicleParameter& pars,
                      const RONet* net, MsgHandler* errorHandler)
     : RORoutable(pars, type), myRoute(route) {
     getParameter().stops.clear();
-    if (route != 0 && route->getFirstRoute() != 0) {
+    if (route != nullptr && route->getFirstRoute() != nullptr) {
         for (std::vector<SUMOVehicleParameter::Stop>::const_iterator s = route->getFirstRoute()->getStops().begin(); s != route->getFirstRoute()->getStops().end(); ++s) {
             addStop(*s, net, errorHandler);
         }
@@ -76,7 +72,7 @@ ROVehicle::addStop(const SUMOVehicleParameter::Stop& stopPar, const RONet* net, 
     const ROEdge* stopEdge = net->getEdgeForLaneID(stopPar.lane);
     assert(stopEdge != 0); // was checked when parsing the stop
     if (stopEdge->prohibits(this)) {
-        if (errorHandler != 0) {
+        if (errorHandler != nullptr) {
             errorHandler->inform("Stop edge '" + stopEdge->getID() + "' does not allow vehicle '" + getID() + "'.");
         }
         return;
@@ -131,13 +127,13 @@ ROVehicle::computeRoute(const RORouterProvider& provider,
     std::string noRouteMsg = "The vehicle '" + getID() + "' has no valid route.";
     RORouteDef* const routeDef = getRouteDefinition();
     // check if the route definition is valid
-    if (routeDef == 0) {
+    if (routeDef == nullptr) {
         errorHandler->inform(noRouteMsg);
         myRoutingSuccess = false;
         return;
     }
     RORoute* current = routeDef->buildCurrentRoute(router, getDepartureTime(), *this);
-    if (current == 0 || current->size() == 0) {
+    if (current == nullptr || current->size() == 0) {
         delete current;
         errorHandler->inform(noRouteMsg);
         myRoutingSuccess = false;
@@ -145,10 +141,10 @@ ROVehicle::computeRoute(const RORouterProvider& provider,
     }
     // check whether we have to evaluate the route for not containing loops
     if (removeLoops) {
-        const ROEdge* requiredStart = (getParameter().departPosProcedure == DEPART_POS_GIVEN 
-                || getParameter().departLaneProcedure == DEPART_LANE_GIVEN ? current->getEdgeVector().front() : 0);
+        const ROEdge* requiredStart = (getParameter().departPosProcedure == DEPART_POS_GIVEN
+                                       || getParameter().departLaneProcedure == DEPART_LANE_GIVEN ? current->getEdgeVector().front() : 0);
         const ROEdge* requiredEnd = (getParameter().arrivalPosProcedure == ARRIVAL_POS_GIVEN
-                || getParameter().arrivalLaneProcedure == ARRIVAL_LANE_GIVEN ? current->getEdgeVector().back() : 0);
+                                     || getParameter().arrivalLaneProcedure == ARRIVAL_LANE_GIVEN ? current->getEdgeVector().back() : 0);
         current->recheckForLoops(getMandatoryEdges(requiredStart, requiredEnd));
         // check whether the route is still valid
         if (current->size() == 0) {
@@ -196,11 +192,11 @@ ROVehicle::getMandatoryEdges(const ROEdge* requiredStart, const ROEdge* required
 
 void
 ROVehicle::saveAsXML(OutputDevice& os, OutputDevice* const typeos, bool asAlternatives, OptionsCont& options) const {
-    if (typeos != 0 && getType() != 0 && !getType()->saved) {
+    if (typeos != nullptr && getType() != nullptr && !getType()->saved) {
         getType()->write(*typeos);
         getType()->saved = true;
     }
-    if (getType() != 0 && !getType()->saved) {
+    if (getType() != nullptr && !getType()->saved) {
         getType()->write(os);
         getType()->saved = asAlternatives;
     }

@@ -19,11 +19,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <iostream>
@@ -87,13 +83,13 @@ const StringBijection<FXuint> GNEInternalLane::LinkStateNames(
 // method definitions
 // ===========================================================================
 GNEInternalLane::GNEInternalLane(GNETLSEditorFrame* editor, const std::string& id, const PositionVector& shape, int tlIndex, LinkState state) :
-    GUIGlObject(editor == 0 ? GLO_JUNCTION : GLO_TLLOGIC, id),
+    GUIGlObject(editor == nullptr ? GLO_JUNCTION : GLO_TLLOGIC, id),
     myShape(shape),
     myState(state),
     myStateTarget(myState),
     myEditor(editor),
     myTlIndex(tlIndex),
-    myPopup(0) {
+    myPopup(nullptr) {
     int segments = (int) myShape.size() - 1;
     if (segments >= 0) {
         myShapeRotations.reserve(segments);
@@ -119,7 +115,7 @@ GNEInternalLane::~GNEInternalLane() {}
 
 long
 GNEInternalLane::onDefault(FXObject* obj, FXSelector sel, void* data) {
-    if (myEditor != 0) {
+    if (myEditor != nullptr) {
         FXuint before = myState;
         myStateTarget.handle(obj, sel, data);
         if (myState != before) {
@@ -127,9 +123,9 @@ GNEInternalLane::onDefault(FXObject* obj, FXSelector sel, void* data) {
         }
         // let GUISUMOAbstractView know about clicks so that the popup is properly destroyed
         if (FXSELTYPE(sel) == SEL_COMMAND) {
-            if (myPopup != 0) {
+            if (myPopup != nullptr) {
                 myPopup->getParentView()->destroyPopup();
-                myPopup = 0;
+                myPopup = nullptr;
             }
         }
     }
@@ -178,7 +174,7 @@ GUIGLObjectPopupMenu*
 GNEInternalLane::getPopUpMenu(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     myPopup = new GUIGLObjectPopupMenu(app, parent, *this);
     buildPopupHeader(myPopup, app);
-    if (myEditor != 0) {
+    if (myEditor != nullptr) {
         const std::vector<std::string> names = LinkStateNames.getStrings();
         for (std::vector<std::string>::const_iterator it = names.begin(); it != names.end(); it++) {
             FXuint state = LinkStateNames.get(*it);
@@ -218,7 +214,7 @@ GNEInternalLane::colorForLinksState(FXuint state) {
     } else {
         try {
             return GUIVisualizationSettings::getLinkColor((LinkState)state);
-        } catch (ProcessError) {
+        } catch (ProcessError&) {
             std::cout << "invalid link state='" << state << "'\n";
             return RGBColor::BLACK;
         }

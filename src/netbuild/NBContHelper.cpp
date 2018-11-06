@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <vector>
 #include <map>
@@ -76,7 +72,7 @@ NBContHelper::findConnectingEdge(const EdgeVector& edges,
             return *i;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 
@@ -142,7 +138,7 @@ NBContHelper::edge_with_destination_finder::operator()(NBEdge* e) const {
  * ----------------------------------------------------------------------- */
 int
 NBContHelper::relative_outgoing_edge_sorter::operator()(NBEdge* e1, NBEdge* e2) const {
-    if (e1 == 0 || e2 == 0) {
+    if (e1 == nullptr || e2 == nullptr) {
         return -1;
     }
     double relAngle1 = NBHelpers::normRelAngle(
@@ -173,7 +169,7 @@ NBContHelper::relative_outgoing_edge_sorter::operator()(NBEdge* e1, NBEdge* e2) 
  * ----------------------------------------------------------------------- */
 int
 NBContHelper::straightness_sorter::operator()(NBEdge* e1, NBEdge* e2) const {
-    if (e1 == 0 || e2 == 0) {
+    if (e1 == nullptr || e2 == nullptr) {
         return -1;
     }
     double relAngle1 = NBHelpers::normRelAngle(
@@ -224,7 +220,7 @@ NBContHelper::straightness_sorter::operator()(NBEdge* e1, NBEdge* e2) const {
  * ----------------------------------------------------------------------- */
 int
 NBContHelper::relative_incoming_edge_sorter::operator()(NBEdge* e1, NBEdge* e2) const {
-    if (e1 == 0 || e2 == 0) {
+    if (e1 == nullptr || e2 == nullptr) {
         return -1;
     }
     double relAngle1 = NBHelpers::normRelAngle(

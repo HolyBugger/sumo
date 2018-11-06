@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <cmath>
 #include <vector>
@@ -131,7 +127,7 @@ GUIPerson::GUIPersonPopupMenu::onCmdHideWalkingareaPath(FXObject*, FXSelector, v
 long
 GUIPerson::GUIPersonPopupMenu::onCmdShowPlan(FXObject*, FXSelector, void*) {
     GUIPerson* p = dynamic_cast<GUIPerson*>(myObject);
-    if (p == 0) {
+    if (p == nullptr) {
         return 1;
     }
     GUIParameterTableWindow* ret = new GUIParameterTableWindow(*myApplication, *p, p->getNumStages());
@@ -196,20 +192,20 @@ GUIPerson::getPopUpMenu(GUIMainWindow& app,
     buildNameCopyPopupEntry(ret);
     buildSelectionPopupEntry(ret);
     if (hasActiveAddVisualisation(&parent, VO_SHOW_ROUTE)) {
-        new FXMenuCommand(ret, "Hide Current Route", 0, ret, MID_HIDE_CURRENTROUTE);
+        new FXMenuCommand(ret, "Hide Current Route", nullptr, ret, MID_HIDE_CURRENTROUTE);
     } else {
-        new FXMenuCommand(ret, "Show Current Route", 0, ret, MID_SHOW_CURRENTROUTE);
+        new FXMenuCommand(ret, "Show Current Route", nullptr, ret, MID_SHOW_CURRENTROUTE);
     }
     if (hasActiveAddVisualisation(&parent, VO_SHOW_WALKINGAREA_PATH)) {
-        new FXMenuCommand(ret, "Hide Walkingarea Path", 0, ret, MID_HIDE_WALKINGAREA_PATH);
+        new FXMenuCommand(ret, "Hide Walkingarea Path", nullptr, ret, MID_HIDE_WALKINGAREA_PATH);
     } else {
-        new FXMenuCommand(ret, "Show Walkingarea Path", 0, ret, MID_SHOW_WALKINGAREA_PATH);
+        new FXMenuCommand(ret, "Show Walkingarea Path", nullptr, ret, MID_SHOW_WALKINGAREA_PATH);
     }
     new FXMenuSeparator(ret);
     if (parent.getTrackedID() != getGlID()) {
-        new FXMenuCommand(ret, "Start Tracking", 0, ret, MID_START_TRACK);
+        new FXMenuCommand(ret, "Start Tracking", nullptr, ret, MID_START_TRACK);
     } else {
-        new FXMenuCommand(ret, "Stop Tracking", 0, ret, MID_STOP_TRACK);
+        new FXMenuCommand(ret, "Stop Tracking", nullptr, ret, MID_STOP_TRACK);
     }
     new FXMenuSeparator(ret);
     //
@@ -226,13 +222,13 @@ GUIParameterTableWindow*
 GUIPerson::getParameterWindow(GUIMainWindow& app,
                               GUISUMOAbstractView&) {
     GUIParameterTableWindow* ret =
-        new GUIParameterTableWindow(app, *this, 12 + (int)getParameter().getMap().size());
+        new GUIParameterTableWindow(app, *this, 12 + (int)getParameter().getParametersMap().size());
     // add items
     ret->mkItem("stage", false, getCurrentStageDescription());
     // there is always the "start" stage which we do not count here because it is not strictly part of the plan
     ret->mkItem("stage index", false, toString(getNumStages() - getNumRemainingStages()) + " of " + toString(getNumStages() - 1));
     ret->mkItem("start edge [id]", false, getFromEdge()->getID());
-    ret->mkItem("dest edge [id]", false, getDestination().getID());
+    ret->mkItem("dest edge [id]", false, getDestination()->getID());
     ret->mkItem("arrivalPos [m]", false, toString(getCurrentStage()->getArrivalPos()));
     ret->mkItem("edge [id]", false, getEdge()->getID());
     ret->mkItem("position [m]", true, new FunctionBinding<GUIPerson, double>(this, &GUIPerson::getEdgePos));
@@ -251,7 +247,7 @@ GUIParameterTableWindow*
 GUIPerson::getTypeParameterWindow(GUIMainWindow& app,
                                   GUISUMOAbstractView&) {
     GUIParameterTableWindow* ret =
-        new GUIParameterTableWindow(app, *this, 8 + (int)myVType->getParameter().getMap().size());
+        new GUIParameterTableWindow(app, *this, 8 + (int)myVType->getParameter().getParametersMap().size());
     // add items
     ret->mkItem("Type Information:", false, "");
     ret->mkItem("type [id]", false, myVType->getID());
@@ -270,7 +266,7 @@ Boundary
 GUIPerson::getCenteringBoundary() const {
     Boundary b;
     // ensure that the vehicle is drawn, otherwise myPositionInVehicle will not be updated
-    b.add(getPosition());
+    b.add(getGUIPosition());
     b.grow(MAX2(getVehicleType().getWidth(), getVehicleType().getLength()));
     return b;
 }
@@ -280,10 +276,7 @@ void
 GUIPerson::drawGL(const GUIVisualizationSettings& s) const {
     glPushName(getGlID());
     glPushMatrix();
-    Position p1 = getPosition();
-    if (getCurrentStageType() == DRIVING && !isWaiting4Vehicle()) {
-        p1 = myPositionInVehicle;
-    }
+    Position p1 = getGUIPosition();
     glTranslated(p1.x(), p1.y(), getType());
     glRotated(90, 0, 0, 1);
     // set person color
@@ -315,12 +308,12 @@ GUIPerson::drawGL(const GUIVisualizationSettings& s) const {
 void
 GUIPerson::drawAction_drawWalkingareaPath(const GUIVisualizationSettings& s) const {
     MSPersonStage_Walking* stage = dynamic_cast<MSPersonStage_Walking*>(getCurrentStage());
-    if (stage != 0) {
+    if (stage != nullptr) {
         setColor(s);
         MSPModel_Striping::PState* stripingState = dynamic_cast<MSPModel_Striping::PState*>(stage->getPedestrianState());
-        if (stripingState != 0) {
+        if (stripingState != nullptr) {
             MSPModel_Striping::WalkingAreaPath* waPath = stripingState->myWalkingAreaPath;
-            if (waPath != 0) {
+            if (waPath != nullptr) {
                 glPushMatrix();
                 glTranslated(0, 0, getType());
                 GLHelper::drawBoxLines(waPath->shape, 0.05);
@@ -422,7 +415,7 @@ GUIPerson::getColorValue(int activeScheme) const {
             return getSpeed();
         case 5:
             if (isWaiting4Vehicle()) {
-                return 3;
+                return 5;
             } else {
                 return (double)getCurrentStageType();
             }
@@ -446,6 +439,17 @@ Position
 GUIPerson::getPosition() const {
     AbstractMutex::ScopedLocker locker(myLock);
     return MSPerson::getPosition();
+}
+
+
+Position
+GUIPerson::getGUIPosition() const {
+    AbstractMutex::ScopedLocker locker(myLock);
+    if (getCurrentStageType() == DRIVING && !isWaiting4Vehicle() && myPositionInVehicle != Position::INVALID) {
+        return myPositionInVehicle;
+    } else {
+        return MSPerson::getPosition();
+    }
 }
 
 

@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <cmath>
 #include <vector>
@@ -42,7 +38,6 @@
 #include <utils/gui/images/GUITexturesHelper.h>
 #include <utils/gui/div/GUIGlobalSelection.h>
 #include <utils/gui/div/GLHelper.h>
-#include <utils/gui/div/GLObjectValuePassConnector.h>
 #include <utils/gui/div/GUIGlobalSelection.h>
 #include <microsim/MSVehicle.h>
 #include <microsim/MSLane.h>
@@ -51,6 +46,7 @@
 #include <microsim/MSVehicleControl.h>
 #include <microsim/lcmodels/MSAbstractLaneChangeModel.h>
 #include <microsim/devices/MSDevice_Vehroutes.h>
+#include <microsim/devices/MSDevice_Transportable.h>
 #include <microsim/devices/MSDevice_BTreceiver.h>
 #include <gui/GUIApplicationWindow.h>
 #include <gui/GUIGlobals.h>
@@ -61,6 +57,7 @@
 #include "GUIEdge.h"
 #include "GUILane.h"
 
+//#define DRAW_BOUNDING_BOX
 
 // ===========================================================================
 // FOX callback mapping
@@ -275,7 +272,6 @@ GUIBaseVehicle::~GUIBaseVehicle() {
         while (i->first->removeAdditionalGLVisualisation(this));
     }
     myLock.unlock();
-    GLObjectValuePassConnector<double>::removeObject(*this);
     delete myRoutes;
 }
 
@@ -290,32 +286,32 @@ GUIBaseVehicle::getPopUpMenu(GUIMainWindow& app,
     buildSelectionPopupEntry(ret);
     //
     if (hasActiveAddVisualisation(&parent, VO_SHOW_ROUTE)) {
-        new FXMenuCommand(ret, "Hide Current Route", 0, ret, MID_HIDE_CURRENTROUTE);
+        new FXMenuCommand(ret, "Hide Current Route", nullptr, ret, MID_HIDE_CURRENTROUTE);
     } else {
-        new FXMenuCommand(ret, "Show Current Route", 0, ret, MID_SHOW_CURRENTROUTE);
+        new FXMenuCommand(ret, "Show Current Route", nullptr, ret, MID_SHOW_CURRENTROUTE);
     }
     if (hasActiveAddVisualisation(&parent, VO_SHOW_ALL_ROUTES)) {
-        new FXMenuCommand(ret, "Hide All Routes", 0, ret, MID_HIDE_ALLROUTES);
+        new FXMenuCommand(ret, "Hide All Routes", nullptr, ret, MID_HIDE_ALLROUTES);
     } else {
-        new FXMenuCommand(ret, "Show All Routes", 0, ret, MID_SHOW_ALLROUTES);
+        new FXMenuCommand(ret, "Show All Routes", nullptr, ret, MID_SHOW_ALLROUTES);
     }
     if (hasActiveAddVisualisation(&parent, VO_SHOW_BEST_LANES)) {
-        new FXMenuCommand(ret, "Hide Best Lanes", 0, ret, MID_HIDE_BEST_LANES);
+        new FXMenuCommand(ret, "Hide Best Lanes", nullptr, ret, MID_HIDE_BEST_LANES);
     } else {
-        new FXMenuCommand(ret, "Show Best Lanes", 0, ret, MID_SHOW_BEST_LANES);
+        new FXMenuCommand(ret, "Show Best Lanes", nullptr, ret, MID_SHOW_BEST_LANES);
     }
     if (hasActiveAddVisualisation(&parent, VO_SHOW_LFLINKITEMS)) {
-        new FXMenuCommand(ret, "Hide Link Items", 0, ret, MID_HIDE_LFLINKITEMS);
+        new FXMenuCommand(ret, "Hide Link Items", nullptr, ret, MID_HIDE_LFLINKITEMS);
     } else {
-        new FXMenuCommand(ret, "Show Link Items", 0, ret, MID_SHOW_LFLINKITEMS);
+        new FXMenuCommand(ret, "Show Link Items", nullptr, ret, MID_SHOW_LFLINKITEMS);
     }
     new FXMenuSeparator(ret);
     if (parent.getTrackedID() != getGlID()) {
-        new FXMenuCommand(ret, "Start Tracking", 0, ret, MID_START_TRACK);
+        new FXMenuCommand(ret, "Start Tracking", nullptr, ret, MID_START_TRACK);
     } else {
-        new FXMenuCommand(ret, "Stop Tracking", 0, ret, MID_STOP_TRACK);
+        new FXMenuCommand(ret, "Stop Tracking", nullptr, ret, MID_STOP_TRACK);
     }
-    new FXMenuCommand(ret, "Select Foes", 0, ret, MID_SHOW_FOES);
+    new FXMenuCommand(ret, "Select Foes", nullptr, ret, MID_SHOW_FOES);
 
     new FXMenuSeparator(ret);
     //
@@ -608,7 +604,7 @@ GUIBaseVehicle::drawAction_drawVehicleAsPoly(const GUIVisualizationSettings& s) 
         }
         case SVS_EMERGENCY: // similar to delivery
             drawPoly(vehiclePoly_PassengerVanBody, 4);
-            GLHelper::setColor(darker); 
+            GLHelper::setColor(darker);
             drawPoly(vehiclePoly_PassengerVanBodyFront, 4.5);
             glColor3d(0, 0, 0);
             drawPoly(vehiclePoly_PassengerVanFrontGlass, 4.5);
@@ -624,7 +620,7 @@ GUIBaseVehicle::drawAction_drawVehicleAsPoly(const GUIVisualizationSettings& s) 
             break;
         case SVS_FIREBRIGADE: // similar to delivery in red orange
             drawPoly(vehiclePoly_PassengerVanBody, 4);
-            GLHelper::setColor(lighter); 
+            GLHelper::setColor(lighter);
             drawPoly(vehiclePoly_PassengerVanBodyFront, 4.5);
             glColor3d(0, 0, 0);
             drawPoly(vehiclePoly_PassengerVanFrontGlass, 4.5);
@@ -886,7 +882,7 @@ GUIBaseVehicle::drawOnPos(const GUIVisualizationSettings& s, const Position& pos
     const double degAngle = RAD2DEG(angle + M_PI / 2.);
     const double length = getVType().getLength();
     // one seat in the center of the vehicle by default
-    if (myVehicle.getLane() != 0) {
+    if (myVehicle.getLane() != nullptr) {
         mySeatPositions[0] = myVehicle.getPosition(-length / 2);
     } else {
         mySeatPositions[0] = p1;
@@ -954,7 +950,7 @@ GUIBaseVehicle::drawOnPos(const GUIVisualizationSettings& s, const Position& pos
         glEnd();
     }
     MSDevice_BTreceiver* dev = static_cast<MSDevice_BTreceiver*>(myVehicle.getDevice(typeid(MSDevice_BTreceiver)));
-    if (dev != 0 && s.showBTRange) {
+    if (dev != nullptr && s.showBTRange) {
         glColor3d(1., 0., 0.);
         GLHelper::drawOutlineCircle(dev->getRange(), dev->getRange() - .2, 32);
     }
@@ -1110,7 +1106,7 @@ GUIBaseVehicle::setFunctionalColor(int activeScheme, const MSBaseVehicle* veh) {
     switch (activeScheme) {
         case 0: {
             //test for emergency vehicle
-            if (veh->getVehicleType().getGuiShape()== SVS_EMERGENCY) {
+            if (veh->getVehicleType().getGuiShape() == SVS_EMERGENCY) {
                 GLHelper::setColor(RGBColor::WHITE);
                 return true;
             }
@@ -1252,7 +1248,7 @@ GUIBaseVehicle::drawRoute(const GUIVisualizationSettings& s, int routeNo, double
     }
     --routeNo; // only prior routes are stored
     const MSRoute* route = myRoutes->getRoute(routeNo);
-    if (route != 0) {
+    if (route != nullptr) {
         drawRouteHelper(s, *route);
     }
 }
@@ -1263,6 +1259,47 @@ GUIBaseVehicle::getSeatPosition(int personIndex) const {
     /// if there are not enough seats in the vehicle people have to squeeze onto the last seat
     return mySeatPositions[MIN2(personIndex, (int)mySeatPositions.size() - 1)];
 }
+
+
+void
+GUIBaseVehicle::drawAction_drawPersonsAndContainers(const GUIVisualizationSettings& s) const {
+    if (myVehicle.myPersonDevice != nullptr) {
+        const std::vector<MSTransportable*>& ps = myVehicle.myPersonDevice->getTransportables();
+        int personIndex = 0;
+        for (std::vector<MSTransportable*>::const_iterator i = ps.begin(); i != ps.end(); ++i) {
+            GUIPerson* person = dynamic_cast<GUIPerson*>(*i);
+            assert(person != 0);
+            person->setPositionInVehicle(getSeatPosition(personIndex++));
+            person->drawGL(s);
+        }
+    }
+    if (myVehicle.myContainerDevice != nullptr) {
+        const std::vector<MSTransportable*>& cs = myVehicle.myContainerDevice->getTransportables();
+        int containerIndex = 0;
+        for (std::vector<MSTransportable*>::const_iterator i = cs.begin(); i != cs.end(); ++i) {
+            GUIContainer* container = dynamic_cast<GUIContainer*>(*i);
+            assert(container != 0);
+            container->setPositionInVehicle(getSeatPosition(containerIndex++));
+            container->drawGL(s);
+        }
+    }
+#ifdef DRAW_BOUNDING_BOX
+    glPushName(getGlID());
+    glPushMatrix();
+    glTranslated(0, 0, getType());
+    PositionVector boundingBox = getBoundingBox();
+    boundingBox.push_back(boundingBox.front());
+    PositionVector smallBB = getBoundingPoly();
+    glColor3d(0, .8, 0);
+    GLHelper::drawLine(boundingBox);
+    glColor3d(0.5, .8, 0);
+    GLHelper::drawLine(smallBB);
+    //GLHelper::drawBoxLines(getBoundingBox(), 0.5);
+    glPopMatrix();
+    glPopName();
+#endif
+}
+
 
 
 /****************************************************************************/

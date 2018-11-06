@@ -23,16 +23,14 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <cassert>
 #include <utils/iodevices/BinaryInputDevice.h>
+#include <utils/options/OptionsCont.h>
 #include <utils/common/FileHelpers.h>
 #include <utils/common/RandHelper.h>
+#include <utils/common/TplConvert.h>
 #include <utils/vehicle/SUMOVTypeParameter.h>
 #include <microsim/cfmodels/MSCFModel_Rail.h>
 #include "MSNet.h"
@@ -46,7 +44,7 @@
 #include "cfmodels/MSCFModel_Daniel1.h"
 #include "cfmodels/MSCFModel_PWag2009.h"
 #include "cfmodels/MSCFModel_Wiedemann.h"
-#include "cfmodels/MSCFModel_TCI.h"
+#include "cfmodels/MSCFModel_ACC.h"
 #include "MSVehicleControl.h"
 #include "MSVehicleType.h"
 
@@ -61,7 +59,7 @@ int MSVehicleType::myNextIndex = 0;
 // method definitions
 // ===========================================================================
 MSVehicleType::MSVehicleType(const SUMOVTypeParameter& parameter)
-    : myParameter(parameter), myWarnedActionStepLengthTauOnce(false), myIndex(myNextIndex++), myCarFollowModel(0), myOriginalType(0) {
+    : myParameter(parameter), myWarnedActionStepLengthTauOnce(false), myIndex(myNextIndex++), myCarFollowModel(nullptr), myOriginalType(nullptr) {
     assert(getLength() > 0);
     assert(getMaxSpeed() > 0);
 
@@ -87,7 +85,7 @@ MSVehicleType::computeChosenSpeedDeviation(std::mt19937* rng, const double minDe
 // ------------ Setter methods
 void
 MSVehicleType::setLength(const double& length) {
-    if (myOriginalType != 0 && length < 0) {
+    if (myOriginalType != nullptr && length < 0) {
         myParameter.length = myOriginalType->getLength();
     } else {
         myParameter.length = length;
@@ -98,7 +96,7 @@ MSVehicleType::setLength(const double& length) {
 
 void
 MSVehicleType::setHeight(const double& height) {
-    if (myOriginalType != 0 && height < 0) {
+    if (myOriginalType != nullptr && height < 0) {
         myParameter.height = myOriginalType->getHeight();
     } else {
         myParameter.height = height;
@@ -109,7 +107,7 @@ MSVehicleType::setHeight(const double& height) {
 
 void
 MSVehicleType::setMinGap(const double& minGap) {
-    if (myOriginalType != 0 && minGap < 0) {
+    if (myOriginalType != nullptr && minGap < 0) {
         myParameter.minGap = myOriginalType->getMinGap();
     } else {
         myParameter.minGap = minGap;
@@ -120,7 +118,7 @@ MSVehicleType::setMinGap(const double& minGap) {
 
 void
 MSVehicleType::setMinGapLat(const double& minGapLat) {
-    if (myOriginalType != 0 && minGapLat < 0) {
+    if (myOriginalType != nullptr && minGapLat < 0) {
         myParameter.minGapLat = myOriginalType->getMinGapLat();
     } else {
         myParameter.minGapLat = minGapLat;
@@ -131,7 +129,7 @@ MSVehicleType::setMinGapLat(const double& minGapLat) {
 
 void
 MSVehicleType::setMaxSpeed(const double& maxSpeed) {
-    if (myOriginalType != 0 && maxSpeed < 0) {
+    if (myOriginalType != nullptr && maxSpeed < 0) {
         myParameter.maxSpeed = myOriginalType->getMaxSpeed();
     } else {
         myParameter.maxSpeed = maxSpeed;
@@ -142,7 +140,7 @@ MSVehicleType::setMaxSpeed(const double& maxSpeed) {
 
 void
 MSVehicleType::setMaxSpeedLat(const double& maxSpeedLat) {
-    if (myOriginalType != 0 && maxSpeedLat < 0) {
+    if (myOriginalType != nullptr && maxSpeedLat < 0) {
         myParameter.maxSpeedLat = myOriginalType->getMaxSpeedLat();
     } else {
         myParameter.maxSpeedLat = maxSpeedLat;
@@ -166,7 +164,7 @@ MSVehicleType::setPreferredLateralAlignment(LateralAlignment latAlignment) {
 
 void
 MSVehicleType::setDefaultProbability(const double& prob) {
-    if (myOriginalType != 0 && prob < 0) {
+    if (myOriginalType != nullptr && prob < 0) {
         myParameter.defaultProbability = myOriginalType->getDefaultProbability();
     } else {
         myParameter.defaultProbability = prob;
@@ -177,7 +175,7 @@ MSVehicleType::setDefaultProbability(const double& prob) {
 
 void
 MSVehicleType::setSpeedFactor(const double& factor) {
-    if (myOriginalType != 0 && factor < 0) {
+    if (myOriginalType != nullptr && factor < 0) {
         myParameter.speedFactor.getParameter()[0] = myOriginalType->myParameter.speedFactor.getParameter()[0];
     } else {
         myParameter.speedFactor.getParameter()[0] = factor;
@@ -188,7 +186,7 @@ MSVehicleType::setSpeedFactor(const double& factor) {
 
 void
 MSVehicleType::setSpeedDeviation(const double& dev) {
-    if (myOriginalType != 0 && dev < 0) {
+    if (myOriginalType != nullptr && dev < 0) {
         myParameter.speedFactor.getParameter()[1] = myOriginalType->myParameter.speedFactor.getParameter()[1];
     } else {
         myParameter.speedFactor.getParameter()[1] = dev;
@@ -249,7 +247,7 @@ MSVehicleType::setColor(const RGBColor& color) {
 
 void
 MSVehicleType::setWidth(const double& width) {
-    if (myOriginalType != 0 && width < 0) {
+    if (myOriginalType != nullptr && width < 0) {
         myParameter.width = myOriginalType->getWidth();
     } else {
         myParameter.width = width;
@@ -259,7 +257,7 @@ MSVehicleType::setWidth(const double& width) {
 
 void
 MSVehicleType::setImpatience(const double impatience) {
-    if (myOriginalType != 0 && impatience < 0) {
+    if (myOriginalType != nullptr && impatience < 0) {
         myParameter.impatience = myOriginalType->getImpatience();
     } else {
         myParameter.impatience = impatience;
@@ -280,87 +278,58 @@ MSVehicleType::setShape(SUMOVehicleShape shape) {
 MSVehicleType*
 MSVehicleType::build(SUMOVTypeParameter& from) {
     MSVehicleType* vtype = new MSVehicleType(from);
-    const double accel = from.getCFParam(SUMO_ATTR_ACCEL, SUMOVTypeParameter::getDefaultAccel(from.vehicleClass));
     const double decel = from.getCFParam(SUMO_ATTR_DECEL, SUMOVTypeParameter::getDefaultDecel(from.vehicleClass));
-    // by default decel and apparentDecel are identical (alternatively, defaults could be used)
-    //const double emergencyDecel = from.getCFParam(SUMO_ATTR_EMERGENCYDECEL, SUMOVTypeParameter::getDefaultEmergencyDecel(from.vehicleClass));
-    const double emergencyDecel = from.getCFParam(SUMO_ATTR_EMERGENCYDECEL, decel);
+    const double emergencyDecel = from.getCFParam(SUMO_ATTR_EMERGENCYDECEL, SUMOVTypeParameter::getDefaultEmergencyDecel(from.vehicleClass, decel, MSGlobals::gDefaultEmergencyDecel));
     // by default decel and apparentDecel are identical
     const double apparentDecel = from.getCFParam(SUMO_ATTR_APPARENTDECEL, decel);
 
     if (emergencyDecel < decel) {
-        WRITE_WARNING("Value of 'emergencyDecel' is should be higher than 'decel' for vType '" + from.id + "'.");
+        WRITE_WARNING("Value of 'emergencyDecel' (" + toString(emergencyDecel) + ") should be higher than 'decel' (" + toString(decel) + ") for vType '" + from.id + "'.");
     }
     if (emergencyDecel < apparentDecel) {
-        WRITE_WARNING("Value of 'emergencyDecel' lower than 'apparentDecel' for vType '" + from.id + "' may cause collisions.");
+        WRITE_WARNING("Value of 'emergencyDecel' (" + toString(emergencyDecel) + ") is lower than 'apparentDecel' (" + toString(apparentDecel) + ") for vType '" + from.id + "' may cause collisions.");
     }
 
-    const double sigma = from.getCFParam(SUMO_ATTR_SIGMA, SUMOVTypeParameter::getDefaultImperfection(from.vehicleClass));
-    const double tau = from.getCFParam(SUMO_ATTR_TAU, 1.);
     switch (from.cfModel) {
         case SUMO_TAG_CF_IDM:
-            vtype->myCarFollowModel = new MSCFModel_IDM(vtype, accel, decel, emergencyDecel, apparentDecel, tau,
-                    from.getCFParam(SUMO_ATTR_CF_IDM_DELTA, 4.),
-                    from.getCFParam(SUMO_ATTR_CF_IDM_STEPPING, .25));
+            vtype->myCarFollowModel = new MSCFModel_IDM(vtype, false);
             break;
         case SUMO_TAG_CF_IDMM:
-            vtype->myCarFollowModel = new MSCFModel_IDM(vtype, accel, decel, emergencyDecel, apparentDecel, tau,
-                    from.getCFParam(SUMO_ATTR_CF_IDMM_ADAPT_FACTOR, 1.8),
-                    from.getCFParam(SUMO_ATTR_CF_IDMM_ADAPT_TIME, 600.),
-                    from.getCFParam(SUMO_ATTR_CF_IDM_STEPPING, .25));
+            vtype->myCarFollowModel = new MSCFModel_IDM(vtype, true);
             break;
         case SUMO_TAG_CF_BKERNER:
-            vtype->myCarFollowModel = new MSCFModel_Kerner(vtype, accel, decel, emergencyDecel, apparentDecel, tau,
-                    from.getCFParam(SUMO_ATTR_K, .5),
-                    from.getCFParam(SUMO_ATTR_CF_KERNER_PHI, 5.));
+            vtype->myCarFollowModel = new MSCFModel_Kerner(vtype);
             break;
         case SUMO_TAG_CF_KRAUSS_ORIG1:
-            vtype->myCarFollowModel = new MSCFModel_KraussOrig1(vtype, accel, decel, emergencyDecel, apparentDecel, sigma, tau);
+            vtype->myCarFollowModel = new MSCFModel_KraussOrig1(vtype);
             break;
         case SUMO_TAG_CF_KRAUSS_PLUS_SLOPE:
-            vtype->myCarFollowModel = new MSCFModel_KraussPS(vtype, accel, decel, emergencyDecel, apparentDecel, sigma, tau);
+            vtype->myCarFollowModel = new MSCFModel_KraussPS(vtype);
             break;
         case SUMO_TAG_CF_KRAUSSX:
-            vtype->myCarFollowModel = new MSCFModel_KraussX(vtype, accel, decel, emergencyDecel, apparentDecel, sigma, tau,
-                    from.getCFParam(SUMO_ATTR_TMP1, 0.),
-                    from.getCFParam(SUMO_ATTR_TMP2, 0.)
-                                                           );
+            vtype->myCarFollowModel = new MSCFModel_KraussX(vtype);
             break;
         case SUMO_TAG_CF_SMART_SK:
-            vtype->myCarFollowModel = new MSCFModel_SmartSK(vtype, accel, decel, emergencyDecel, apparentDecel, sigma, tau,
-                    from.getCFParam(SUMO_ATTR_TMP1, 1.),
-                    from.getCFParam(SUMO_ATTR_TMP2, 1.),
-                    from.getCFParam(SUMO_ATTR_TMP3, 1.),
-                    from.getCFParam(SUMO_ATTR_TMP4, 1.),
-                    from.getCFParam(SUMO_ATTR_TMP5, 1.));
+            vtype->myCarFollowModel = new MSCFModel_SmartSK(vtype);
             break;
         case SUMO_TAG_CF_DANIEL1:
-            vtype->myCarFollowModel = new MSCFModel_Daniel1(vtype, accel, decel, emergencyDecel, apparentDecel, sigma, tau,
-                    from.getCFParam(SUMO_ATTR_TMP1, 1.),
-                    from.getCFParam(SUMO_ATTR_TMP2, 1.),
-                    from.getCFParam(SUMO_ATTR_TMP3, 1.),
-                    from.getCFParam(SUMO_ATTR_TMP4, 1.),
-                    from.getCFParam(SUMO_ATTR_TMP5, 1.));
+            vtype->myCarFollowModel = new MSCFModel_Daniel1(vtype);
             break;
         case SUMO_TAG_CF_PWAGNER2009:
-            vtype->myCarFollowModel = new MSCFModel_PWag2009(vtype, accel, decel, emergencyDecel, apparentDecel, sigma, tau,
-                    from.getCFParam(SUMO_ATTR_CF_PWAGNER2009_TAULAST, 0.3),
-                    from.getCFParam(SUMO_ATTR_CF_PWAGNER2009_APPROB, 0.5));
+            vtype->myCarFollowModel = new MSCFModel_PWag2009(vtype);
             break;
         case SUMO_TAG_CF_WIEDEMANN:
-            vtype->myCarFollowModel = new MSCFModel_Wiedemann(vtype, accel, decel, emergencyDecel, apparentDecel,
-                    from.getCFParam(SUMO_ATTR_CF_WIEDEMANN_SECURITY, 0.5),
-                    from.getCFParam(SUMO_ATTR_CF_WIEDEMANN_ESTIMATION, 0.5));
-            break;
-        case SUMO_TAG_CF_TCI:
-            vtype->myCarFollowModel = new MSCFModel_TCI(vtype, accel, decel, emergencyDecel, apparentDecel, tau);
+            vtype->myCarFollowModel = new MSCFModel_Wiedemann(vtype);
             break;
         case SUMO_TAG_CF_RAIL:
-            vtype->myCarFollowModel = new MSCFModel_Rail(vtype, from.getCFParamString(SUMO_ATTR_TRAIN_TYPE, "NGT400"));
+            vtype->myCarFollowModel = new MSCFModel_Rail(vtype);
+            break;
+        case SUMO_TAG_CF_ACC:
+            vtype->myCarFollowModel = new MSCFModel_ACC(vtype);
             break;
         case SUMO_TAG_CF_KRAUSS:
         default:
-            vtype->myCarFollowModel = new MSCFModel_Krauss(vtype, accel, decel, emergencyDecel, apparentDecel, sigma, tau);
+            vtype->myCarFollowModel = new MSCFModel_Krauss(vtype);
             break;
     }
     vtype->check();
@@ -403,54 +372,54 @@ MSVehicleType::check() {
     }
 }
 
-void 
+void
 MSVehicleType::setAccel(double accel) {
-    if (myOriginalType != 0 && accel < 0) {
+    if (myOriginalType != nullptr && accel < 0) {
         accel = myOriginalType->getCarFollowModel().getMaxAccel();
     }
     myCarFollowModel->setMaxAccel(accel);
     myParameter.cfParameter[SUMO_ATTR_ACCEL] = toString(accel);
 }
 
-void 
+void
 MSVehicleType::setDecel(double decel) {
-    if (myOriginalType != 0 && decel < 0) {
+    if (myOriginalType != nullptr && decel < 0) {
         decel = myOriginalType->getCarFollowModel().getMaxDecel();
     }
     myCarFollowModel->setMaxDecel(decel);
     myParameter.cfParameter[SUMO_ATTR_DECEL] = toString(decel);
 }
 
-void 
+void
 MSVehicleType::setEmergencyDecel(double emergencyDecel) {
-    if (myOriginalType != 0 && emergencyDecel < 0) {
+    if (myOriginalType != nullptr && emergencyDecel < 0) {
         emergencyDecel = myOriginalType->getCarFollowModel().getEmergencyDecel();
     }
     myCarFollowModel->setEmergencyDecel(emergencyDecel);
     myParameter.cfParameter[SUMO_ATTR_EMERGENCYDECEL] = toString(emergencyDecel);
 }
 
-void 
+void
 MSVehicleType::setApparentDecel(double apparentDecel) {
-    if (myOriginalType != 0 && apparentDecel < 0) {
+    if (myOriginalType != nullptr && apparentDecel < 0) {
         apparentDecel = myOriginalType->getCarFollowModel().getApparentDecel();
     }
     myCarFollowModel->setApparentDecel(apparentDecel);
     myParameter.cfParameter[SUMO_ATTR_APPARENTDECEL] = toString(apparentDecel);
 }
 
-void 
+void
 MSVehicleType::setImperfection(double imperfection) {
-    if (myOriginalType != 0 && imperfection < 0) {
+    if (myOriginalType != nullptr && imperfection < 0) {
         imperfection = myOriginalType->getCarFollowModel().getImperfection();
     }
     myCarFollowModel->setImperfection(imperfection);
     myParameter.cfParameter[SUMO_ATTR_SIGMA] = toString(imperfection);
 }
 
-void 
+void
 MSVehicleType::setTau(double tau) {
-    if (myOriginalType != 0 && tau < 0) {
+    if (myOriginalType != nullptr && tau < 0) {
         tau = myOriginalType->getCarFollowModel().getHeadwayTime();
     }
     myCarFollowModel->setHeadwayTime(tau);

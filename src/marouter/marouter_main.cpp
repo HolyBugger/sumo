@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #ifdef HAVE_VERSION_H
 #include <version.h>
@@ -120,7 +116,7 @@ void
 computeAllPairs(RONet& net, OptionsCont& oc) {
     std::ofstream outFile(oc.getString("all-pairs-output").c_str(), std::ios::binary);
     // build the router
-    typedef DijkstraRouter<ROEdge, ROVehicle, noProhibitions<ROEdge, ROVehicle> > Dijkstra;
+    typedef DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouter<ROEdge, ROVehicle> > Dijkstra;
     Dijkstra router(ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &getTravelTime);
     ConstROEdgeVector into;
     const int numInternalEdges = net.getInternalEdgeNumber();
@@ -128,8 +124,8 @@ computeAllPairs(RONet& net, OptionsCont& oc) {
     for (int i = numInternalEdges; i < numTotalEdges; i++) {
         const Dijkstra::EdgeInfo& ei = router.getEdgeInfo(i);
         if (!ei.edge->isInternal()) {
-            router.compute(ei.edge, 0, 0, 0, into);
-            double fromEffort = router.getEffort(ei.edge, 0, 0);
+            router.compute(ei.edge, nullptr, nullptr, 0, into);
+            double fromEffort = router.getEffort(ei.edge, nullptr, 0);
             for (int j = numInternalEdges; j < numTotalEdges; j++) {
                 double heuTT = router.getEdgeInfo(j).effort - fromEffort;
                 FileHelpers::writeFloat(outFile, heuTT);
@@ -177,7 +173,7 @@ writeInterval(OutputDevice& dev, const SUMOTime begin, const SUMOTime end, const
 void
 computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
     // build the router
-    SUMOAbstractRouter<ROEdge, ROVehicle>* router = 0;
+    SUMOAbstractRouter<ROEdge, ROVehicle>* router = nullptr;
     const std::string measure = oc.getString("weight-attribute");
     const std::string routingAlgorithm = oc.getString("routing-algorithm");
     const SUMOTime begin = string2time(oc.getString("begin"));
@@ -186,36 +182,36 @@ computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
         if (routingAlgorithm == "dijkstra") {
             if (net.hasPermissions()) {
                 if (oc.getInt("paths") > 1) {
-                    router = new DijkstraRouter<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >(
+                    router = new DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >(
                         ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROMAAssignments::getPenalizedTT);
                 } else {
-                    router = new DijkstraRouter<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >(
+                    router = new DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >(
                         ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic);
                 }
             } else {
                 if (oc.getInt("paths") > 1) {
-                    router = new DijkstraRouter<ROEdge, ROVehicle, noProhibitions<ROEdge, ROVehicle> >(
+                    router = new DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouter<ROEdge, ROVehicle> >(
                         ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROMAAssignments::getPenalizedTT);
                 } else {
-                    router = new DijkstraRouter<ROEdge, ROVehicle, noProhibitions<ROEdge, ROVehicle> >(
+                    router = new DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouter<ROEdge, ROVehicle> >(
                         ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic);
                 }
             }
         } else if (routingAlgorithm == "astar") {
             if (net.hasPermissions()) {
                 if (oc.getInt("paths") > 1) {
-                    router = new AStarRouter<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >(
+                    router = new AStarRouter<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >(
                         ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROMAAssignments::getPenalizedTT);
                 } else {
-                    router = new AStarRouter<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >(
+                    router = new AStarRouter<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >(
                         ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic);
                 }
             } else {
                 if (oc.getInt("paths") > 1) {
-                    router = new AStarRouter<ROEdge, ROVehicle, noProhibitions<ROEdge, ROVehicle> >(
+                    router = new AStarRouter<ROEdge, ROVehicle, SUMOAbstractRouter<ROEdge, ROVehicle> >(
                         ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROMAAssignments::getPenalizedTT);
                 } else {
-                    router = new AStarRouter<ROEdge, ROVehicle, noProhibitions<ROEdge, ROVehicle> >(
+                    router = new AStarRouter<ROEdge, ROVehicle, SUMOAbstractRouter<ROEdge, ROVehicle> >(
                         ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic);
                 }
             }
@@ -224,17 +220,17 @@ computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
                                            string2time(oc.getString("weight-period")) :
                                            std::numeric_limits<int>::max());
             if (net.hasPermissions()) {
-                router = new CHRouter<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >(
+                router = new CHRouter<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >(
                     ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic, SVC_IGNORING, weightPeriod, true);
             } else {
-                router = new CHRouter<ROEdge, ROVehicle, noProhibitions<ROEdge, ROVehicle> >(
+                router = new CHRouter<ROEdge, ROVehicle, SUMOAbstractRouter<ROEdge, ROVehicle> >(
                     ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic, SVC_IGNORING, weightPeriod, false);
             }
         } else if (routingAlgorithm == "CHWrapper") {
             const SUMOTime weightPeriod = (oc.isSet("weight-files") ?
                                            string2time(oc.getString("weight-period")) :
                                            std::numeric_limits<int>::max());
-            router = new CHRouterWrapper<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >(
+            router = new CHRouterWrapper<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >(
                 ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROEdge::getTravelTimeStatic,
                 begin, end, weightPeriod, oc.getInt("routing-threads"));
         } else {
@@ -242,7 +238,7 @@ computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
         }
 
     } else {
-        DijkstraRouter<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >::Operation op;
+        DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >::Operation op;
         if (measure == "CO") {
             op = &ROEdge::getEmissionEffort<PollutantsInterface::CO>;
         } else if (measure == "CO2") {
@@ -264,24 +260,24 @@ computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
         }
         if (net.hasPermissions()) {
             if (oc.getInt("paths") > 1) {
-                router = new DijkstraRouter<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >(
+                router = new DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >(
                     ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROMAAssignments::getPenalizedEffort, &ROMAAssignments::getTravelTime);
             } else {
-                router = new DijkstraRouter<ROEdge, ROVehicle, prohibited_withPermissions<ROEdge, ROVehicle> >(
+                router = new DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouterPermissions<ROEdge, ROVehicle> >(
                     ROEdge::getAllEdges(), oc.getBool("ignore-errors"), op, &ROEdge::getTravelTimeStatic);
             }
         } else {
             if (oc.getInt("paths") > 1) {
-                router = new DijkstraRouter<ROEdge, ROVehicle, noProhibitions<ROEdge, ROVehicle> >(
+                router = new DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouter<ROEdge, ROVehicle> >(
                     ROEdge::getAllEdges(), oc.getBool("ignore-errors"), &ROMAAssignments::getPenalizedEffort, &ROMAAssignments::getTravelTime);
             } else {
-                router = new DijkstraRouter<ROEdge, ROVehicle, noProhibitions<ROEdge, ROVehicle> >(
+                router = new DijkstraRouter<ROEdge, ROVehicle, SUMOAbstractRouter<ROEdge, ROVehicle> >(
                     ROEdge::getAllEdges(), oc.getBool("ignore-errors"), op, &ROEdge::getTravelTimeStatic);
             }
         }
     }
     try {
-        const RORouterProvider provider(router, 0, 0);
+        const RORouterProvider provider(router, nullptr, nullptr);
         // prepare the output
         net.openOutput(oc);
         // process route definitions
@@ -289,7 +285,7 @@ computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
             matrix.applyCurve(matrix.parseTimeLine(oc.getStringVector("timeline"), oc.getBool("timeline.day-in-hours")));
         }
         matrix.sortByBeginTime();
-        ROVehicle defaultVehicle(SUMOVehicleParameter(), 0, net.getVehicleTypeSecure(DEFAULT_VTYPE_ID), &net);
+        ROVehicle defaultVehicle(SUMOVehicleParameter(), nullptr, net.getVehicleTypeSecure(DEFAULT_VTYPE_ID), &net);
         ROMAAssignments a(begin, end, oc.getBool("additive-traffic"), oc.getFloat("weight-adaption"), net, matrix, *router);
         a.resetFlows();
 #ifdef HAVE_FOX
@@ -308,7 +304,7 @@ computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
         // update path costs and output
         bool haveOutput = false;
         OutputDevice* dev = net.getRouteOutput();
-        if (dev != 0) {
+        if (dev != nullptr) {
             std::vector<std::string> tazParamKeys;
             if (oc.isSet("taz-param")) {
                 tazParamKeys = oc.getStringVector("taz-param");
@@ -333,7 +329,7 @@ computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
                     od.openTag(SUMO_TAG_ROUTE_DISTRIBUTION);
                     for (std::vector<RORoute*>::const_iterator j = c->pathsVector.begin(); j != c->pathsVector.end(); ++j) {
                         (*j)->setCosts(router->recomputeCosts((*j)->getEdgeVector(), &defaultVehicle, string2time(oc.getString("begin"))));
-                        (*j)->writeXMLDefinition(od, 0, true, false);
+                        (*j)->writeXMLDefinition(od, nullptr, true, false);
                     }
                     od.closeTag();
                     od.closeTag();
@@ -348,7 +344,7 @@ computeRoutes(RONet& net, OptionsCont& oc, ODMatrix& matrix) {
                             od.openTag(SUMO_TAG_ROUTE_DISTRIBUTION);
                             for (std::vector<RORoute*>::const_iterator j = c->pathsVector.begin(); j != c->pathsVector.end(); ++j) {
                                 (*j)->setCosts(router->recomputeCosts((*j)->getEdgeVector(), &defaultVehicle, string2time(oc.getString("begin"))));
-                                (*j)->writeXMLDefinition(od, 0, true, false);
+                                (*j)->writeXMLDefinition(od, nullptr, true, false);
                             }
                             od.closeTag();
                             if (!tazParamKeys.empty()) {
@@ -417,7 +413,7 @@ main(int argc, char** argv) {
     oc.setApplicationDescription("Import O/D-matrices for macroscopic traffic assignment to generate SUMO routes");
     oc.setApplicationName("marouter", "Eclipse SUMO marouter Version " VERSION_STRING);
     int ret = 0;
-    RONet* net = 0;
+    RONet* net = nullptr;
     try {
         XMLSubSys::init();
         ROMAFrame::fillOptions();

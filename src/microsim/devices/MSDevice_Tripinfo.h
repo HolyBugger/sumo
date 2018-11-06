@@ -12,7 +12,7 @@
 /// @author  Michael Behrisch
 /// @author  Jakob Erdmann
 /// @date    Fri, 30.01.2009
-/// @version $Id: MSDevice_Tripinfo.h v0_32_0+0134-9f1b8d0bad oss@behrisch.de 2018-01-04 21:53:06 +0100 $
+/// @version $Id$
 ///
 // A device which collects info on the vehicle trip
 /****************************************************************************/
@@ -23,13 +23,9 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 #include <utils/common/SUMOTime.h>
 
 // ===========================================================================
@@ -48,7 +44,7 @@ class SUMOVehicle;
  *
  * @see MSDevice
  */
-class MSDevice_Tripinfo : public MSDevice {
+class MSDevice_Tripinfo : public MSVehicleDevice {
 public:
     /** @brief Build devices for the given vehicle, if needed
      *
@@ -60,7 +56,7 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[filled] into The vector to store the built device in
      */
-    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into);
+    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
 
     /// @brief update tripinfo statistics
     void updateStatistics(SUMOTime timeLoss) const;
@@ -238,7 +234,7 @@ private:
     SUMOTime myMesoTimeLoss;
 
     /// @brief devices which may still need to produce output
-    typedef std::set<const MSDevice_Tripinfo*, Named::NamedLikeComparatorIdLess<MSDevice_Tripinfo> > DeviceSet;
+    typedef std::set<const MSDevice_Tripinfo*, ComparatorIdLess > DeviceSet;
 
     static DeviceSet myPendingOutput;
 
@@ -249,6 +245,7 @@ private:
     static SUMOTime myTotalWaitingTime;
     static SUMOTime myTotalTimeLoss;
     static SUMOTime myTotalDepartDelay;
+    static SUMOTime myWaitingDepartDelay;
 
     static int myWalkCount;
     static double myTotalWalkRouteLength;

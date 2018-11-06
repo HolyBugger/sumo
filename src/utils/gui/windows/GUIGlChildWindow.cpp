@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/gui/images/GUIIconSubSys.h>
 #include <utils/gui/windows/GUIAppEnum.h>
@@ -60,7 +56,7 @@ GUIGlChildWindow::GUIGlChildWindow(
     FXIcon* ic,
     FXuint opts, FXint x, FXint y, FXint w, FXint h) :
     FXMDIChild(p, name, ic, mdimenu, opts, x, y, w, h),
-    myView(0),
+    myView(nullptr),
     myParent(parentWindow) {
     // Make MDI Window Menu
     setTracking();

@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <cassert>
 #include <utility>
@@ -64,7 +60,7 @@ MSActuatedTrafficLightLogic::MSActuatedTrafficLightLogic(MSTLLogicControl& tlcon
         int step, SUMOTime delay,
         const std::map<std::string, std::string>& parameter,
         const std::string& basePath) :
-    MSSimpleTrafficLightLogic(tlcontrol, id, programID, phases, step, delay, parameter) {
+    MSSimpleTrafficLightLogic(tlcontrol, id, programID, TLTYPE_ACTUATED, phases, step, delay, parameter) {
 
     myMaxGap = TplConvert::_2double(getParameter("max-gap", DEFAULT_MAX_GAP).c_str());
     myPassingTime = TplConvert::_2double(getParameter("passing-time", DEFAULT_PASSING_TIME).c_str()); // passing-time seems obsolete... (Leo)
@@ -91,6 +87,10 @@ MSActuatedTrafficLightLogic::init(NLDetectorBuilder& nb) {
         const LaneVector& lanes = *i2;
         for (i = lanes.begin(); i != lanes.end(); i++) {
             MSLane* lane = (*i);
+            if (noVehicles(lane->getPermissions())) {
+                // do not build detectors on green verges or sidewalks
+                continue;
+            }
             double length = lane->getLength();
             double speed = lane->getSpeedLimit();
             double inductLoopPosition = myDetectorGap * speed;
@@ -111,7 +111,7 @@ MSActuatedTrafficLightLogic::init(NLDetectorBuilder& nb) {
     // warn if the minGap is insufficient to clear vehicles between stop line and detector
     SUMOTime minMinDur = getMinimumMinDuration();
     if (floor(floor(maxDetectorGap / DEFAULT_LENGTH_WITH_GAP) * myPassingTime) > STEPS2TIME(minMinDur)) {
-        WRITE_WARNING("At actuated tlLogic '" + getID() + "', minDur " + time2string(minMinDur) + " is too short to short for detector gap of " + toString(maxDetectorGap) + "m.");
+        WRITE_WARNING("At actuated tlLogic '" + getID() + "', minDur " + time2string(minMinDur) + " is too short for a detector gap of " + toString(maxDetectorGap) + "m.");
     }
 }
 

@@ -18,11 +18,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <stdlib.h>
 #include "SysUtils.h"
@@ -82,8 +78,8 @@ SysUtils::runHiddenCommand(const std::string& cmd) {
     char* args = new char[winCmd.size() + 1];
     args[0] = 0;
     strcpy(args, winCmd.c_str());
-    if (!CreateProcess(NULL, args, NULL, NULL, FALSE,
-                       CREATE_NEW_CONSOLE, NULL, NULL, &StartupInfo, &ProcessInfo)) {
+    if (!CreateProcess(nullptr, args, nullptr, nullptr, FALSE,
+                       CREATE_NEW_CONSOLE, nullptr, nullptr, &StartupInfo, &ProcessInfo)) {
         delete[] args;
         return (unsigned long)GetLastError();
     }

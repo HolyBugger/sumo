@@ -26,11 +26,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <map>
@@ -58,6 +54,7 @@ class ROEdge;
 
 typedef std::vector<ROEdge*> ROEdgeVector;
 typedef std::vector<const ROEdge*> ConstROEdgeVector;
+typedef std::vector<std::pair<const ROEdge*, const ROEdge*> > ROConstEdgePairVector;
 
 
 // ===========================================================================
@@ -108,7 +105,7 @@ public:
      * @param[in] s The edge to add
      * @todo What about vehicle-type aware connections?
      */
-    virtual void addSuccessor(ROEdge* s, std::string dir = "");
+    virtual void addSuccessor(ROEdge* s, ROEdge* via = nullptr, std::string dir = "");
 
 
     /** @brief Sets the function of the edge
@@ -314,18 +311,17 @@ public:
     int getNumSuccessors() const;
 
 
-    /** @brief Returns the following edges
-     */
-    const ROEdgeVector& getSuccessors() const {
-        return myFollowingEdges;
-    }
-
-
     /** @brief Returns the following edges, restricted by vClass
-     * @param[in] vClass The vClass for which to restrict the successors
-     * @return The eligible following edges
-     */
-    const ROEdgeVector& getSuccessors(SUMOVehicleClass vClass) const;
+    * @param[in] vClass The vClass for which to restrict the successors
+    * @return The eligible following edges
+    */
+    const ROEdgeVector& getSuccessors(SUMOVehicleClass vClass = SVC_IGNORING) const;
+
+    /** @brief Returns the following edges including vias, restricted by vClass
+    * @param[in] vClass The vClass for which to restrict the successors
+    * @return The eligible following edges
+    */
+    const ROConstEdgePairVector& getViaSuccessors(SUMOVehicleClass vClass = SVC_IGNORING) const;
 
 
     /** @brief Returns the number of edges connected to this edge
@@ -453,6 +449,9 @@ public:
         myInterpolate = interpolate;
     }
 
+    /// @brief return the coordinates of the center of the given stop
+    static const Position getStopPosition(const SUMOVehicleParameter::Stop& stop);
+
     /// @brief get edge priority (road class)
     int getPriority() const {
         return myPriority;
@@ -525,6 +524,8 @@ protected:
     /// @brief List of edges that may be approached from this edge
     ROEdgeVector myFollowingEdges;
 
+    ROConstEdgePairVector myFollowingViaEdges;
+
     /// @brief List of edges that approached this edge
     ROEdgeVector myApproachingEdges;
 
@@ -548,6 +549,9 @@ protected:
 
     /// @brief The successors available for a given vClass
     mutable std::map<SUMOVehicleClass, ROEdgeVector> myClassesSuccessorMap;
+
+    /// @brief The successors with vias available for a given vClass
+    mutable std::map<SUMOVehicleClass, ROConstEdgePairVector> myClassesViaSuccessorMap;
 
 #ifdef HAVE_FOX
     /// The mutex used to avoid concurrent updates of myClassesSuccessorMap

@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <stack>
@@ -41,6 +37,7 @@
 #include <utils/gui/windows/GUIMainWindow.h>
 #include <utils/gui/div/GUIGlobalSelection.h>
 #include <utils/gui/div/GLHelper.h>
+#include <utils/gui/div/GLObjectValuePassConnector.h>
 #include "GUIGlObject.h"
 #include "GUIGlObjectStorage.h"
 
@@ -60,6 +57,8 @@ StringBijection<GUIGlObjectType>::Entry GUIGlObject::GUIGlObjectTypeNamesInitial
     {"tlLogic",             GLO_TLLOGIC},
     {"additional",          GLO_ADDITIONAL},
     {"busStop",             GLO_BUS_STOP},
+    {"access",              GLO_ACCESS},
+    {"taz",                 GLO_TAZ},
     {"containerStop",       GLO_CONTAINER_STOP},
     {"chargingStation",     GLO_CHARGING_STATION},
     {"parkingArea",         GLO_PARKING_AREA},
@@ -109,6 +108,7 @@ GUIGlObject::~GUIGlObject() {
     for (auto i : myParamWindows) {
         i->removeObject(this);
     }
+    GLObjectValuePassConnector<double>::removeObject(*this);
     GUIGlObjectStorage::gIDStorage.remove(getGlID());
 }
 
@@ -119,7 +119,7 @@ GUIGlObject::getFullName() const {
 }
 
 
-const std::string&
+std::string
 GUIGlObject::getParentName() const {
     return StringUtils::emptyString;
 }
@@ -135,7 +135,7 @@ GUIParameterTableWindow*
 GUIGlObject::getTypeParameterWindow(GUIMainWindow& app, GUISUMOAbstractView& parent) {
     UNUSED_PARAMETER(&app);
     UNUSED_PARAMETER(&parent);
-    return 0;
+    return nullptr;
 }
 
 
@@ -181,7 +181,7 @@ GUIGlObject::setNode(osg::Node* node) {
 
 void
 GUIGlObject::buildPopupHeader(GUIGLObjectPopupMenu* ret, GUIMainWindow& app, bool addSeparator) {
-    new MFXMenuHeader(ret, app.getBoldFont(), getFullName().c_str(), 0, 0, 0);
+    new MFXMenuHeader(ret, app.getBoldFont(), getFullName().c_str(), nullptr, nullptr, 0);
     if (addSeparator) {
         new FXMenuSeparator(ret);
     }
@@ -199,8 +199,8 @@ GUIGlObject::buildCenterPopupEntry(GUIGLObjectPopupMenu* ret, bool addSeparator)
 
 void
 GUIGlObject::buildNameCopyPopupEntry(GUIGLObjectPopupMenu* ret, bool addSeparator) {
-    new FXMenuCommand(ret, "Copy name to clipboard", 0, ret, MID_COPY_NAME);
-    new FXMenuCommand(ret, "Copy typed name to clipboard", 0, ret, MID_COPY_TYPED_NAME);
+    new FXMenuCommand(ret, "Copy name to clipboard", nullptr, ret, MID_COPY_NAME);
+    new FXMenuCommand(ret, "Copy typed name to clipboard", nullptr, ret, MID_COPY_TYPED_NAME);
     if (addSeparator) {
         new FXMenuSeparator(ret);
     }
@@ -240,9 +240,9 @@ GUIGlObject::buildShowTypeParamsPopupEntry(GUIGLObjectPopupMenu* ret, bool addSe
 
 void
 GUIGlObject::buildPositionCopyEntry(GUIGLObjectPopupMenu* ret, bool addSeparator) {
-    new FXMenuCommand(ret, "Copy cursor position to clipboard", 0, ret, MID_COPY_CURSOR_POSITION);
+    new FXMenuCommand(ret, "Copy cursor position to clipboard", nullptr, ret, MID_COPY_CURSOR_POSITION);
     if (GeoConvHelper::getFinal().usingGeoProjection()) {
-        new FXMenuCommand(ret, "Copy cursor geo-position to clipboard", 0, ret, MID_COPY_CURSOR_GEOPOSITION);
+        new FXMenuCommand(ret, "Copy cursor geo-position to clipboard", nullptr, ret, MID_COPY_CURSOR_GEOPOSITION);
     }
     if (addSeparator) {
         new FXMenuSeparator(ret);
@@ -291,7 +291,7 @@ GUIGlObject::buildShapePopupOptions(GUIMainWindow& app, GUIGLObjectPopupMenu* re
     buildPositionCopyEntry(ret, false);
     // only show type if isn't empty
     if (type != "") {
-        new FXMenuCommand(ret, ("type: " + type + "").c_str(), 0, 0, 0);
+        new FXMenuCommand(ret, ("type: " + type + "").c_str(), nullptr, nullptr, 0);
         new FXMenuSeparator(ret);
     }
 }
@@ -314,7 +314,7 @@ GUIGlObject::buildAdditionalsPopupOptions(GUIMainWindow& app, GUIGLObjectPopupMe
     buildPositionCopyEntry(ret, false);
     // only show type if isn't empty
     if (type != "") {
-        new FXMenuCommand(ret, ("type: " + type + "").c_str(), 0, 0, 0);
+        new FXMenuCommand(ret, ("type: " + type + "").c_str(), nullptr, nullptr, 0);
         new FXMenuSeparator(ret);
     }
 }

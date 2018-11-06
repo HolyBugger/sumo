@@ -24,11 +24,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <stdexcept>
@@ -157,6 +153,17 @@ public:
         : ProcessError(message) {}
 };
 
+/// define SOFT_ASSERT raise an assertion in debug mode everywhere except on the windows test server
+#define MSVC_TEST_SERVER // replace this with a CMake variable
+#ifdef MSVC_TEST_SERVER
+  #ifdef _DEBUG
+    #define SOFT_ASSERT(expr) if (!(expr)) {throw ProcessError("should not happen");}
+  #else
+    #define SOFT_ASSERT(expr)
+  #endif
+#else
+  #define SOFT_ASSERT(expr) assert(expr);
+#endif
 
 #endif
 

@@ -46,11 +46,17 @@ try:
 except ImportError:
     from urllib.request import urlopen
 import os
+import sys
 import shutil
 import datetime
+import pydoc
+import types
 from optparse import OptionParser
 
 from mirrorWiki import readParsePage, readParseEditPage, getAllPages
+TOOLDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(TOOLDIR)
+from sumolib.miscutils import working_dir
 
 
 def patchLinks(page, name):
@@ -83,7 +89,7 @@ def patchLinks(page, name):
             link = page[l:le]
             p = link.find("daily/pydoc")
             if p >= 0:
-                link = level + ".." + link[p+5:]
+                link = level + ".." + link[p + 5:]
                 page = page[:l] + link + page[le:]
         b = page.find(" href=", b + 1)
     return page, images, level
@@ -139,21 +145,46 @@ def parseWikiLink(l):
         link = ""
     return text, link
 
+
+def pydoc_recursive(module):
+    pydoc.writedoc(module)
+    for submod in module.__dict__.values():
+        if type(submod) is types.ModuleType and submod.__name__.startswith(module.__name__):
+            pydoc_recursive(submod)
+
+
+def generate_pydoc(out_dir):
+    os.mkdir(out_dir)
+    import traci, sumolib
+    with working_dir(out_dir):
+        for module in (traci, sumolib):
+            pydoc_recursive(module)
+
+
 optParser = OptionParser()
 optParser.add_option("-m", "--mirror", default="mirror", help="mirror folder")
 optParser.add_option("-o", "--output", default="docs", help="output folder")
+optParser.add_option("-p", "--pydoc-output", help="output folder for pydoc")
 optParser.add_option("-i", "--index", default=os.path.join(os.path.dirname(
     __file__), "..", "..", "docs", "wiki", "index.html"), help="index template file")
 optParser.add_option("-r", "--version", help="add version info")
+optParser.add_option("-c", "--clean", action="store_true", default=False, help="remove output dirs")
 (options, args) = optParser.parse_args()
 
+if options.pydoc_output:
+    if options.clean:
+        shutil.rmtree(options.pydoc_output, ignore_errors=True)
+    generate_pydoc(options.pydoc_output)
+if options.clean:
+    shutil.rmtree(options.mirror, ignore_errors=True)
+    shutil.rmtree(options.output, ignore_errors=True)
 try:
     os.mkdir(options.mirror)
-except:
+except Exception:
     pass
 try:
     os.mkdir(options.mirror + "/images")
-except:
+except Exception:
     pass
 images = set()
 pages = getAllPages(args)
@@ -166,7 +197,7 @@ for name in pages:
     if name.find("/") > 0:
         try:
             os.makedirs(os.path.join(options.mirror, name[:name.rfind("/")]))
-        except:
+        except Exception:
             pass
     if True:  # name.find(".")<0:
         c, pi, level = patchLinks(c, name)
@@ -260,11 +291,11 @@ tpl = tpl[:b] + c + tpl[e:]
 # build HTML pages
 try:
     os.mkdir(options.output)
-except:
+except Exception:
     pass
 try:
     os.mkdir(options.output + "/images")
-except:
+except Exception:
     pass
 for name in pages:
     if name.endswith(".css"):
@@ -307,7 +338,7 @@ for name in pages:
 
     try:
         os.makedirs(os.path.split(t)[0])
-    except:
+    except Exception:
         pass
     fd = open(t, "wb")
     fd.write(cc.encode("utf8"))

@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <map>
@@ -270,7 +266,7 @@ PCLoaderVisum::load(const std::string& file, OptionsCont& oc, PCPolyContainer& t
                     color = c;
                 }
                 if (!discard) {
-                    SUMOPolygon* poly = new SUMOPolygon(id, type, color, vec, false, false, layer);
+                    SUMOPolygon* poly = new SUMOPolygon(id, type, color, vec, false, false, 1, layer);
                     toFill.add(poly);
                 }
                 vec.clear();
@@ -316,14 +312,14 @@ PCLoaderVisum::load(const std::string& file, OptionsCont& oc, PCPolyContainer& t
             }
             if (!discard) {
                 if (teilflaechen[flaechenelemente[area]].size() > 0) {
-                    SUMOPolygon* poly = new SUMOPolygon(id, type, color, teilflaechen[flaechenelemente[area]], false, false, layer);
+                    SUMOPolygon* poly = new SUMOPolygon(id, type, color, teilflaechen[flaechenelemente[area]], false, false, 1, layer);
                     toFill.add(poly);
                 } else {
                     Position pos(x, y);
                     if (!geoConvHelper.x2cartesian(pos)) {
                         WRITE_WARNING("Unable to project coordinates for POI '" + id + "'.");
                     }
-                    PointOfInterest* poi = new PointOfInterest(id, type, color, pos, "", 0, 0, layer);
+                    PointOfInterest* poi = new PointOfInterest(id, type, color, pos, "", nullptr, 0, layer);
                     toFill.add(poi);
                 }
             }

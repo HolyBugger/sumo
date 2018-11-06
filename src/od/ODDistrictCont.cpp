@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <utils/common/MsgHandler.h>
@@ -53,7 +49,7 @@ ODDistrictCont::~ODDistrictCont() {}
 std::string
 ODDistrictCont::getRandomSourceFromDistrict(const std::string& name) const {
     ODDistrict* district = get(name);
-    if (district == 0) {
+    if (district == nullptr) {
         throw InvalidArgument("There is no district '" + name + "'.");
     }
     return district->getRandomSource();
@@ -63,7 +59,7 @@ ODDistrictCont::getRandomSourceFromDistrict(const std::string& name) const {
 std::string
 ODDistrictCont::getRandomSinkFromDistrict(const std::string& name) const {
     ODDistrict* district = get(name);
-    if (district == 0) {
+    if (district == nullptr) {
         throw InvalidArgument("There is no district '" + name + "'.");
     }
     return district->getRandomSink();

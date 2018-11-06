@@ -19,11 +19,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utility>
 #include <vector>
@@ -39,7 +35,7 @@
 // ===========================================================================
 MSOffTrafficLightLogic::MSOffTrafficLightLogic(MSTLLogicControl& tlcontrol,
         const std::string& id) :
-    MSTrafficLightLogic(tlcontrol, id, "off", 0, std::map<std::string, std::string>()) {
+    MSTrafficLightLogic(tlcontrol, id, "off", TLTYPE_OFF, 0, std::map<std::string, std::string>()) {
     myDefaultCycleTime = TIME2STEPS(120);
 }
 
@@ -91,7 +87,7 @@ MSOffTrafficLightLogic::rebuildPhase() {
         delete *i;
     }
     myPhaseDefinition.clear();
-    myPhaseDefinition.push_back(new MSPhaseDefinition(TIME2STEPS(120), state));
+    myPhaseDefinition.push_back(new MSPhaseDefinition(TIME2STEPS(120), state, -1));
 }
 
 

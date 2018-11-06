@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include "MSNoLogicJunction.h"
 #include "MSLane.h"
@@ -75,7 +71,7 @@ MSNoLogicJunction::getInternalLanes() const {
     std::vector<MSLane*> allInternalLanes;
     for (std::vector<MSLane*>::const_iterator i = myInternalLanes.begin(); i != myInternalLanes.end(); ++i) {
         MSLane* l = *i;
-        while (l != 0) {
+        while (l != nullptr) {
             allInternalLanes.push_back(l);
             const std::vector<MSLane::IncomingLaneInfo> incoming = l->getIncomingLanes();
             if (incoming.size() == 0) {

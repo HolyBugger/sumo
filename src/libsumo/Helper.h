@@ -9,6 +9,7 @@
 /****************************************************************************/
 /// @file    Helper.h
 /// @author  Robert Hilbrich
+/// @author  Leonhard Luecken
 /// @date    15.09.2017
 /// @version $Id$
 ///
@@ -21,15 +22,12 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <vector>
-#include <libsumo/TraCIDefs.h>
-
+#include <memory>
+#include <libsumo/Subscription.h>
+#include <microsim/MSNet.h>
 
 // ===========================================================================
 // class declarations
@@ -38,9 +36,12 @@ class Position;
 class PositionVector;
 class RGBColor;
 class MSEdge;
-class MSLane;
 class MSPerson;
 
+// ===========================================================================
+// type definitions
+// ===========================================================================
+typedef std::map<const MSLane*, std::pair<double, double> >  LaneCoverageInfo; // also declared in MSLane.h!
 
 // ===========================================================================
 // class definitions
@@ -93,53 +94,22 @@ inline LANE_RTREE_QUAL::Rect LANE_RTREE_QUAL::CombineRect(Rect* a_rectA, Rect* a
     return newRect;
 }
 
-/**
- * @class Helper
- * @brief C++ TraCI client API implementation
- */
 namespace libsumo {
 
-/** @class StoringVisitor
- * @brief Allows to store the object; used as context while traveling the rtree in TraCI
- */
-
+/**
+* @class Helper
+* @brief C++ TraCI client API implementation
+*/
 class Helper {
 public:
-    /** @brief Connects to the specified SUMO server
-    * @param[in] host The name of the host to connect to
-    * @param[in] port The port to connect to
-    * @exception tcpip::SocketException if the connection fails
-    */
-    //void connect(const std::string& host, int port);
+    static void subscribe(const int commandId, const std::string& id, const std::vector<int>& variables,
+                          const double beginTime, const double endTime, const int contextDomain = 0, const double range = 0.);
 
-
-    /// @brief ends the Helper and closes the connection
-    void close();
-    /// @}
-
-    /// @brief load a Helper with the given arguments
-    static void load(const std::vector<std::string>& args);
-
-    /// @brief Advances by one step (or up to the given time)
-    static void HelperStep(const SUMOTime time = 0);
-
-    /// @brief {object->{variable->value}}
-    typedef std::map<int, TraCIValue> TraCIValues;
-    typedef std::map<std::string, TraCIValues> SubscribedValues;
-    typedef std::map<std::string, SubscribedValues> SubscribedContextValues;
-
-    //void subscribe(int domID, const std::string& objID, SUMOTime beginTime, SUMOTime endTime, const std::vector<int>& vars) const;
-    //void subscribeContext(int domID, const std::string& objID, SUMOTime beginTime, SUMOTime endTime, int domain, double range, const std::vector<int>& vars) const;
-
-    const SubscribedValues& getSubscriptionResults() const;
-    const TraCIValues& getSubscriptionResults(const std::string& objID) const;
-
-    const SubscribedContextValues& getContextSubscriptionResults() const;
-    const SubscribedValues& getContextSubscriptionResults(const std::string& objID) const;
+    static void handleSubscriptions(const SUMOTime t);
 
     /// @brief helper functions
     static TraCIPositionVector makeTraCIPositionVector(const PositionVector& positionVector);
-    static TraCIPosition makeTraCIPosition(const Position& position);
+    static TraCIPosition makeTraCIPosition(const Position& position, const bool includeZ = false);
     static Position makePosition(const TraCIPosition& position);
 
     static PositionVector makePositionVector(const TraCIPositionVector& vector);
@@ -150,24 +120,17 @@ public:
     static const MSLane* getLaneChecking(const std::string& edgeID, int laneIndex, double pos);
     static std::pair<MSLane*, double> convertCartesianToRoadMap(Position pos);
 
-    static SUMOTime getCurrentTime();
-
-    static SUMOTime getDeltaT();
-
-    static TraCIBoundary getNetBoundary();
-
-    static int getMinExpectedNumber();
-
-    static TraCIStage findRoute(const std::string& from, const std::string& to, const std::string& typeID, const SUMOTime depart, const int routingMode);
-
-    static std::vector<TraCIStage> findIntermodalRoute(const std::string& from, const std::string& to, const std::string& modes,
-            const SUMOTime depart, const int routingMode, const double speed, const double walkFactor,
-            const double departPos, const double arrivalPos, const double departPosLat,
-            const std::string& pType, const std::string& vehType);
-
-    static std::string getParameter(const std::string& objectID, const std::string& key);
+    static void findObjectShape(int domain, const std::string& id, PositionVector& shape);
 
     static void collectObjectsInRange(int domain, const PositionVector& shape, double range, std::set<std::string>& into);
+
+    /// @brief Filter the given ID-Set (which was obtained from an R-Tree search)
+    ///        according to the filters set by the subscription or firstly build the object ID list if
+    ///        if the filters rather demand searching along the road network than considering a geometric range.
+    /// @param[in] s Subscription which holds the filter specification to be applied
+    /// @param[in/out] objIDs Set of object IDs that is to be filtered. Result is stored in place.
+    /// @note Currently this assumes that the objects are vehicles.
+    static void applySubscriptionFilters(const Subscription& s, std::set<std::string>& objIDs);
 
     static void setRemoteControlled(MSVehicle* v, Position xyPos, MSLane* l, double pos, double posLat, double angle,
                                     int edgeOffset, ConstMSEdgeVector route, SUMOTime t);
@@ -178,6 +141,12 @@ public:
     static void postProcessRemoteControl();
 
     static void cleanup();
+
+    static void registerVehicleStateListener();
+
+    static const std::vector<std::string>& getVehicleStateChanges(const MSNet::VehicleState state);
+
+    static void clearVehicleStates();
 
     /// @name functions for moveToXY
     /// @{
@@ -212,10 +181,51 @@ public:
     };
     /// @}
 
-private:
+    class SubscriptionWrapper : public VariableWrapper {
+    public:
+        SubscriptionWrapper(VariableWrapper::SubscriptionHandler handler, SubscriptionResults& into, ContextSubscriptionResults& context);
+        void setContext(const std::string& refID);
+        bool wrapDouble(const std::string& objID, const int variable, const double value);
+        bool wrapInt(const std::string& objID, const int variable, const int value);
+        bool wrapString(const std::string& objID, const int variable, const std::string& value);
+        bool wrapStringList(const std::string& objID, const int variable, const std::vector<std::string>& value);
+        bool wrapPosition(const std::string& objID, const int variable, const TraCIPosition& value);
+        bool wrapColor(const std::string& objID, const int variable, const TraCIColor& value);
+    private:
+        SubscriptionResults myResults;
+        ContextSubscriptionResults myContextResults;
+        SubscriptionResults& myActiveResults;
+    private:
+        /// @brief Invalidated assignment operator
+        SubscriptionWrapper& operator=(const SubscriptionWrapper& s) = delete;
+    };
 
-    SubscribedValues mySubscribedValues;
-    SubscribedContextValues mySubscribedContextValues;
+private:
+    static void handleSingleSubscription(const Subscription& s);
+
+    /// @brief Adds lane coverage information from newLaneCoverage into aggregatedLaneCoverage
+    /// @param[in/out] aggregatedLaneCoverage - aggregated lane coverage info, to which the new will be added
+    /// @param[in] newLaneCoverage - new lane coverage to be added
+    /// @todo Disjunct ranges are not handled (LaneCoverageInfo definition would need to allow several intervals per lane) but
+    ///       the intermediate range is simply assimilated.
+    static void fuseLaneCoverage(std::shared_ptr<LaneCoverageInfo> aggregatedLaneCoverage, const std::shared_ptr<LaneCoverageInfo> newLaneCoverage);
+
+private:
+    class VehicleStateListener : public MSNet::VehicleStateListener {
+    public:
+        void vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to, const std::string& info = "");
+        /// @brief Changes in the states of simulated vehicles
+        std::map<MSNet::VehicleState, std::vector<std::string> > myVehicleStateChanges;
+    };
+
+    /// @brief The list of known, still valid subscriptions
+    static std::vector<Subscription> mySubscriptions;
+
+    /// @brief Map of commandIds -> their executors; applicable if the executor applies to the method footprint
+    static std::map<int, std::shared_ptr<VariableWrapper> > myWrapper;
+
+    /// @brief Changes in the states of simulated vehicles
+    static VehicleStateListener myVehicleStateListener;
 
     /// @brief A storage of objects
     static std::map<int, NamedRTree*> myObjects;
@@ -227,13 +237,7 @@ private:
     static std::map<std::string, MSPerson*> myRemoteControlledPersons;
 
     /// @brief invalidated standard constructor
-    Helper();
-
-    /// @brief invalidated copy constructor
-    Helper(const Helper& src);
-
-    /// @brief invalidated assignment operator
-    Helper& operator=(const Helper& src);
+    Helper() = delete;
 };
 
 }

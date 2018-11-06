@@ -20,11 +20,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/common/TplConvert.h>
 #include <utils/options/OptionsCont.h>
@@ -55,7 +51,7 @@ MSDevice_Example::insertOptions(OptionsCont& oc) {
 
 
 void
-MSDevice_Example::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into) {
+MSDevice_Example::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into) {
     OptionsCont& oc = OptionsCont::getOptions();
     if (equippedByDefaultAssignmentOptions(oc, "example", v, false)) {
         // build the device
@@ -97,7 +93,7 @@ MSDevice_Example::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& in
 // ---------------------------------------------------------------------------
 MSDevice_Example::MSDevice_Example(SUMOVehicle& holder, const std::string& id,
                                    double customValue1, double customValue2, double customValue3) :
-    MSDevice(holder, id),
+    MSVehicleDevice(holder, id),
     myCustomValue1(customValue1),
     myCustomValue2(customValue2),
     myCustomValue3(customValue3) {
@@ -115,7 +111,7 @@ MSDevice_Example::notifyMove(SUMOVehicle& veh, double /* oldPos */,
     std::cout << "device '" << getID() << "' notifyMove: newSpeed=" << newSpeed << "\n";
     // check whether another device is present on the vehicle:
     MSDevice_Tripinfo* otherDevice = static_cast<MSDevice_Tripinfo*>(veh.getDevice(typeid(MSDevice_Tripinfo)));
-    if (otherDevice != 0) {
+    if (otherDevice != nullptr) {
         std::cout << "  veh '" << veh.getID() << " has device '" << otherDevice->getID() << "'\n";
     }
     return true; // keep the device
@@ -165,7 +161,7 @@ MSDevice_Example::setParameter(const std::string& key, const std::string& value)
     double doubleValue;
     try {
         doubleValue = TplConvert::_2double(value.c_str());
-    } catch (NumberFormatException) {
+    } catch (NumberFormatException&) {
         throw InvalidArgument("Setting parameter '" + key + "' requires a number for device of type '" + deviceName() + "'");
     }
     if (key == "customValue1") {

@@ -22,15 +22,11 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <set>
 #include <string>
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 #include <utils/common/SUMOTime.h>
 #include <utils/geom/Boundary.h>
 
@@ -50,7 +46,7 @@ class SUMOVehicle;
  *
  * @see MSDevice
  */
-class MSDevice_BTsender : public MSDevice {
+class MSDevice_BTsender : public MSVehicleDevice {
 public:
     /** @brief Inserts MSDevice_BTsender-options
      * @param[filled] oc The options container to add the options to
@@ -68,7 +64,7 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[filled] into The vector to store the built device in
      */
-    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into);
+    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
 
 
     /** @brief removes remaining vehicleInformation in sVehicles

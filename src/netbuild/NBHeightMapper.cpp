@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <utils/common/MsgHandler.h>
@@ -61,7 +57,7 @@ NBHeightMapper NBHeightMapper::Singleton;
 
 
 NBHeightMapper::NBHeightMapper():
-    myRTree(&Triangle::addSelf), myRaster(0) {
+    myRTree(&Triangle::addSelf), myRaster(nullptr) {
 }
 
 
@@ -78,7 +74,7 @@ NBHeightMapper::get() {
 
 bool
 NBHeightMapper::ready() const {
-    return myRaster != 0 || myTriangles.size() > 0;
+    return myRaster != nullptr || myTriangles.size() > 0;
 }
 
 
@@ -88,7 +84,7 @@ NBHeightMapper::getZ(const Position& geo) const {
         WRITE_WARNING("Cannot supply height since no height data was loaded");
         return 0;
     }
-    if (myRaster != 0) {
+    if (myRaster != nullptr) {
         double result = -1e6;
         if (myBoundary.around(geo)) {
             const int xSize = int((myBoundary.xmax() - myBoundary.xmin()) / mySizeOfPixel.x() + .5);
@@ -263,7 +259,7 @@ NBHeightMapper::loadShapeFile(const std::string& file) {
 #else
     GDALClose(ds);
 #endif
-    OCTDestroyCoordinateTransformation(toWGS84);
+    OCTDestroyCoordinateTransformation(reinterpret_cast<OGRCoordinateTransformationH>(toWGS84));
     OGRCleanupAll();
     return numFeatures;
 #else

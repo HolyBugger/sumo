@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <vector>
 #include <algorithm>
@@ -55,7 +51,7 @@ ROMAAssignments::ROMAAssignments(const SUMOTime begin, const SUMOTime end, const
                                  const double adaptionFactor, RONet& net, ODMatrix& matrix,
                                  SUMOAbstractRouter<ROEdge, ROVehicle>& router)
     : myBegin(begin), myEnd(end), myAdditiveTraffic(additiveTraffic), myAdaptionFactor(adaptionFactor), myNet(net), myMatrix(matrix), myRouter(router) {
-    myDefaultVehicle = new ROVehicle(SUMOVehicleParameter(), 0, net.getVehicleTypeSecure(DEFAULT_VTYPE_ID), &net);
+    myDefaultVehicle = new ROVehicle(SUMOVehicleParameter(), nullptr, net.getVehicleTypeSecure(DEFAULT_VTYPE_ID), &net);
 }
 
 
@@ -177,7 +173,7 @@ ROMAAssignments::addRoute(ConstROEdgeVector& edges, std::vector<RORoute*>& paths
         }
     }
     if (p == paths.end()) {
-        paths.push_back(new RORoute(routeId, 0., prob, edges, 0, std::vector<SUMOVehicleParameter::Stop>()));
+        paths.push_back(new RORoute(routeId, 0., prob, edges, nullptr, std::vector<SUMOVehicleParameter::Stop>()));
         return true;
     }
     (*p)->addProbability(prob);

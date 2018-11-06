@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <map>
@@ -250,7 +246,7 @@ PCLoaderDlrNavteq::loadPolyFile(const std::string& file,
             color = c;
         }
         if (!discard) {
-            SUMOPolygon* poly = new SUMOPolygon(name, type, color, vec, false, fill, layer);
+            SUMOPolygon* poly = new SUMOPolygon(name, type, color, vec, false, fill, 1, layer);
             toFill.add(poly);
         }
         vec.clear();

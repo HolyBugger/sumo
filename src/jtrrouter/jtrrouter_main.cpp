@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #ifdef HAVE_VERSION_H
 #include <version.h>
@@ -123,7 +119,7 @@ loadJTRDefinitions(RONet& net, OptionsCont& oc) {
         std::vector<std::string> edges = oc.getStringVector("sink-edges");
         for (std::vector<std::string>::const_iterator i = edges.begin(); i != edges.end(); ++i) {
             ROJTREdge* edge = static_cast<ROJTREdge*>(net.getEdge(*i));
-            if (edge == 0) {
+            if (edge == nullptr) {
                 throw ProcessError("The edge '" + *i + "' declared as a sink is not known.");
             }
             edge->setSink();
@@ -147,7 +143,7 @@ computeRoutes(RONet& net, ROLoader& loader, OptionsCont& oc) {
                                           oc.getBool("ignore-vclasses"), oc.getBool("allow-loops"));
     RORouteDef::setUsingJTRR();
     RORouterProvider provider(router, new PedestrianRouter<ROEdge, ROLane, RONode, ROVehicle>(),
-                              new ROIntermodalRouter(RONet::adaptIntermodalRouter, 0));
+                              new ROIntermodalRouter(RONet::adaptIntermodalRouter, 0, "dijkstra"));
     loader.processRoutes(string2time(oc.getString("begin")), string2time(oc.getString("end")),
                          string2time(oc.getString("route-steps")), net, provider);
     net.cleanup();
@@ -164,7 +160,7 @@ main(int argc, char** argv) {
     oc.setApplicationDescription("Router for the microscopic, multi-modal traffic simulation SUMO based on junction turning ratios.");
     oc.setApplicationName("jtrrouter", "Eclipse SUMO jtrrouter Version " VERSION_STRING);
     int ret = 0;
-    RONet* net = 0;
+    RONet* net = nullptr;
     try {
         // initialise the application system (messaging, xml, options)
         XMLSubSys::init();

@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include "MSInstantInductLoop.h"
 #include <cassert>
@@ -114,7 +110,7 @@ MSInstantInductLoop::write(const char* state, double t, SUMOVehicle& veh, double
             "vehID", veh.getID()).writeAttr("speed", toString(speed)).writeAttr(
                 "length", toString(veh.getVehicleType().getLength())).writeAttr(
                     "type", veh.getVehicleType().getID());
-    if (add != 0) {
+    if (add != nullptr) {
         myOutputDevice.writeAttr(add, toString(addValue));
     }
     myOutputDevice.closeTag();

@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #ifdef HAVE_VERSION_H
 #include <version.h>
@@ -38,6 +34,7 @@
 #include <utils/xml/SUMOXMLDefinitions.h>
 #include <utils/xml/SUMOVehicleParserHelper.h>
 #include <microsim/devices/MSDevice_Routing.h>
+#include <microsim/devices/MSDevice_BTreceiver.h>
 #include <microsim/MSEdge.h>
 #include <microsim/MSLane.h>
 #include <microsim/MSGlobals.h>
@@ -46,6 +43,7 @@
 #include <microsim/MSInsertionControl.h>
 #include <microsim/MSRoute.h>
 #include <microsim/MSVehicleControl.h>
+#include <microsim/MSDriverState.h>
 #include "MSStateHandler.h"
 
 #include <mesosim/MESegment.h>
@@ -58,10 +56,10 @@
 MSStateHandler::MSStateHandler(const std::string& file, const SUMOTime offset) :
     MSRouteHandler(file, true),
     myOffset(offset),
-    mySegment(0),
+    mySegment(nullptr),
     myEdgeAndLane(0, -1),
-    myAttrs(0),
-    myLastParameterised(0) {
+    myAttrs(nullptr),
+    myLastParameterised(nullptr) {
     myAmLoadingState = true;
     const std::vector<std::string> vehIDs = OptionsCont::getOptions().getStringVector("load-state.remove-vehicles");
     myVehiclesToRemove.insert(vehIDs.begin(), vehIDs.end());
@@ -78,13 +76,14 @@ MSStateHandler::saveState(const std::string& file, SUMOTime step) {
     out.writeHeader<MSEdge>(SUMO_TAG_SNAPSHOT);
     out.writeAttr("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance").writeAttr("xsi:noNamespaceSchemaLocation", "http://sumo.dlr.de/xsd/state_file.xsd");
     out.writeAttr(SUMO_ATTR_VERSION, VERSION_STRING).writeAttr(SUMO_ATTR_TIME, time2string(step));
+    //saveRNGs(out);
     MSRoute::dict_saveState(out);
     MSNet::getInstance()->getInsertionControl().saveState(out);
     MSNet::getInstance()->getVehicleControl().saveState(out);
     MSVehicleTransfer::getInstance()->saveState(out);
     if (MSGlobals::gUseMesoSim) {
         for (int i = 0; i < MSEdge::dictSize(); i++) {
-            for (MESegment* s = MSGlobals::gMesoNet->getSegmentForEdge(*MSEdge::getAllEdges()[i]); s != 0; s = s->getNextSegment()) {
+            for (MESegment* s = MSGlobals::gMesoNet->getSegmentForEdge(*MSEdge::getAllEdges()[i]); s != nullptr; s = s->getNextSegment()) {
                 s->saveState(out);
             }
         }
@@ -110,6 +109,27 @@ MSStateHandler::myStartElement(int element, const SUMOSAXAttributes& attrs) {
             const std::string& version = attrs.getString(SUMO_ATTR_VERSION);
             if (version != VERSION_STRING) {
                 WRITE_WARNING("State was written with sumo version " + version + " (present: " + VERSION_STRING + ")!");
+            }
+            break;
+        }
+        case SUMO_TAG_RNGSTATE: {
+            if (attrs.hasAttribute(SUMO_ATTR_RNG_DEFAULT)) {
+                RandHelper::loadState(attrs.getString(SUMO_ATTR_RNG_DEFAULT));
+            }
+            if (attrs.hasAttribute(SUMO_ATTR_RNG_ROUTEHANDLER)) {
+                RandHelper::loadState(attrs.getString(SUMO_ATTR_RNG_DEFAULT), MSRouteHandler::getParsingRNG());
+            }
+            if (attrs.hasAttribute(SUMO_ATTR_RNG_INSERTIONCONTROL)) {
+                RandHelper::loadState(attrs.getString(SUMO_ATTR_RNG_DEFAULT), MSNet::getInstance()->getInsertionControl().getFlowRNG());
+            }
+            if (attrs.hasAttribute(SUMO_ATTR_RNG_DEVICE)) {
+                RandHelper::loadState(attrs.getString(SUMO_ATTR_RNG_DEFAULT), MSDevice::getEquipmentRNG());
+            }
+            if (attrs.hasAttribute(SUMO_ATTR_RNG_DEVICE_BT)) {
+                RandHelper::loadState(attrs.getString(SUMO_ATTR_RNG_DEFAULT), MSDevice_BTreceiver::getEquipmentRNG());
+            }
+            if (attrs.hasAttribute(SUMO_ATTR_RNG_DRIVERSTATE)) {
+                RandHelper::loadState(attrs.getString(SUMO_ATTR_RNG_DEFAULT), OUProcess::getRNG());
             }
             break;
         }
@@ -146,9 +166,9 @@ MSStateHandler::myStartElement(int element, const SUMOSAXAttributes& attrs) {
             break;
         }
         case SUMO_TAG_SEGMENT: {
-            if (mySegment == 0) {
+            if (mySegment == nullptr) {
                 mySegment = MSGlobals::gMesoNet->getSegmentForEdge(*MSEdge::getAllEdges()[0]);
-            } else if (mySegment->getNextSegment() == 0) {
+            } else if (mySegment->getNextSegment() == nullptr) {
                 mySegment = MSGlobals::gMesoNet->getSegmentForEdge(*MSEdge::getAllEdges()[mySegment->getEdge().getNumericalID() + 1]);
             } else {
                 mySegment = mySegment->getNextSegment();
@@ -177,11 +197,11 @@ MSStateHandler::myStartElement(int element, const SUMOSAXAttributes& attrs) {
         }
         case SUMO_TAG_PARAM: {
             bool ok;
-            const std::string key = attrs.get<std::string>(SUMO_ATTR_KEY, 0, ok);
+            const std::string key = attrs.get<std::string>(SUMO_ATTR_KEY, nullptr, ok);
             // circumventing empty string test
             const std::string val = attrs.hasAttribute(SUMO_ATTR_VALUE) ? attrs.getString(SUMO_ATTR_VALUE) : "";
             assert(myLastParameterised != 0);
-            if (myLastParameterised != 0) {
+            if (myLastParameterised != nullptr) {
                 myLastParameterised->setParameter(key, val);
             }
             break;
@@ -195,8 +215,8 @@ MSStateHandler::myStartElement(int element, const SUMOSAXAttributes& attrs) {
 void
 MSStateHandler::myEndElement(int element) {
     MSRouteHandler::myEndElement(element);
-    if (element != SUMO_TAG_PARAM && myVehicleParameter == 0 && myCurrentVType == 0) {
-        myLastParameterised = 0;
+    if (element != SUMO_TAG_PARAM && myVehicleParameter == nullptr && myCurrentVType == nullptr) {
+        myLastParameterised = nullptr;
     }
 }
 
@@ -219,16 +239,16 @@ MSStateHandler::closeVehicle() {
         if (v->hasDeparted()) {
             // vehicle already departed: disable pre-insertion rerouting and enable regular routing behavior
             MSDevice_Routing* routingDevice = static_cast<MSDevice_Routing*>(v->getDevice(typeid(MSDevice_Routing)));
-            if (routingDevice != 0) {
+            if (routingDevice != nullptr) {
                 routingDevice->notifyEnter(*v, MSMoveReminder::NOTIFICATION_DEPARTED);
             }
             MSNet::getInstance()->getInsertionControl().alreadyDeparted(v);
         }
         while (!myDeviceAttrs.empty()) {
             const std::string attrID = myDeviceAttrs.back()->getString(SUMO_ATTR_ID);
-            for (std::vector<MSDevice*>::const_iterator dev = v->getDevices().begin(); dev != v->getDevices().end(); ++dev) {
-                if ((*dev)->getID() == attrID) {
-                    (*dev)->loadState(*myDeviceAttrs.back());
+            for (MSVehicleDevice* const dev : v->getDevices()) {
+                if (dev->getID() == attrID) {
+                    dev->loadState(*myDeviceAttrs.back());
                 }
             }
             delete myDeviceAttrs.back();
@@ -237,11 +257,24 @@ MSStateHandler::closeVehicle() {
     } else {
         vc.discountStateLoaded(true);
         delete myVehicleParameter;
-        myVehicleParameter = 0;
+        myVehicleParameter = nullptr;
     }
     delete myAttrs;
 }
 
+
+void
+MSStateHandler::saveRNGs(OutputDevice& out) {
+    out.openTag(SUMO_TAG_RNGSTATE);
+    out.writeAttr(SUMO_ATTR_RNG_DEFAULT, RandHelper::saveState());
+    out.writeAttr(SUMO_ATTR_RNG_ROUTEHANDLER, RandHelper::saveState(MSRouteHandler::getParsingRNG()));
+    out.writeAttr(SUMO_ATTR_RNG_INSERTIONCONTROL, RandHelper::saveState(MSNet::getInstance()->getInsertionControl().getFlowRNG()));
+    out.writeAttr(SUMO_ATTR_RNG_DEVICE, RandHelper::saveState(MSDevice::getEquipmentRNG()));
+    out.writeAttr(SUMO_ATTR_RNG_DEVICE_BT, RandHelper::saveState(MSDevice_BTreceiver::getRNG()));
+    out.writeAttr(SUMO_ATTR_RNG_DRIVERSTATE, RandHelper::saveState(OUProcess::getRNG()));
+    out.closeTag();
+
+}
 
 
 /****************************************************************************/

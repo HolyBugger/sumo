@@ -20,11 +20,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <iostream>
@@ -64,7 +60,7 @@ NBDistrict*
 NBDistrictCont::retrieve(const std::string& id) const {
     DistrictCont::const_iterator i = myDistricts.find(id);
     if (i == myDistricts.end()) {
-        return 0;
+        return nullptr;
     }
     return (*i).second;
 }
@@ -80,7 +76,7 @@ bool
 NBDistrictCont::addSource(const std::string& dist, NBEdge* const source,
                           double weight) {
     NBDistrict* o = retrieve(dist);
-    if (o == 0) {
+    if (o == nullptr) {
         return false;
     }
     return o->addSource(source, weight);
@@ -91,7 +87,7 @@ bool
 NBDistrictCont::addSink(const std::string& dist, NBEdge* const destination,
                         double weight) {
     NBDistrict* o = retrieve(dist);
-    if (o == 0) {
+    if (o == nullptr) {
         return false;
     }
     return o->addSink(destination, weight);

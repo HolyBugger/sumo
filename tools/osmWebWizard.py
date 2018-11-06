@@ -52,17 +52,29 @@ typemaps = {
 }
 
 vehicleParameters = {
-    "passenger":  ["--vehicle-class", "passenger",  "--vclass", "passenger",  "--prefix", "veh",   "--min-distance", "300",  "--trip-attributes", 'speedDev="0.1" departLane="best"', "--validate"],
-    "truck":      ["--vehicle-class", "truck",      "--vclass", "truck",      "--prefix", "truck", "--min-distance", "600",  "--trip-attributes", 'speedDev="0.1" departLane="best"', "--validate"],
-    "bus":        ["--vehicle-class", "bus",        "--vclass", "bus",        "--prefix", "bus",   "--min-distance", "600",  "--trip-attributes",                'departLane="best"', "--validate"],
-    "motorcycle": ["--vehicle-class", "motorcycle", "--vclass", "motorcycle", "--prefix", "moto",  "--max-distance", "1200", "--trip-attributes", 'speedDev="0.1" departLane="best"', "--validate"],
-    "bicycle":    ["--vehicle-class", "bicycle",    "--vclass", "bicycle",    "--prefix", "bike",  "--max-distance", "8000", "--trip-attributes", 'speedDev="0.1" departLane="best"', "--validate"],
-    "tram":       ["--vehicle-class", "tram",       "--vclass", "tram",       "--prefix", "tram",  "--min-distance", "1200", "--trip-attributes",                'departLane="best"', "--validate"],
-    "rail_urban": ["--vehicle-class", "rail_urban", "--vclass", "rail_urban", "--prefix", "urban", "--min-distance", "1800", "--trip-attributes",                'departLane="best"', "--validate"],
-    "rail":       ["--vehicle-class", "rail",       "--vclass", "rail",       "--prefix", "rail",  "--min-distance", "2400", "--trip-attributes",                'departLane="best"', "--validate"],
-    "ship":       ["--vehicle-class", "ship",       "--vclass", "ship",       "--prefix", "ship",                                                                                      "--validate"],
-    "pedestrian": ["--vehicle-class", "pedestrian", "--pedestrians", "--prefix", "ped",   "--max-distance", "2000", "--trip-attributes", 'speedDev="0.1"', ],
-    "persontrips":["--vehicle-class", "pedestrian", "--persontrips", "--prefix", "ped",                             "--trip-attributes", 'speedDev="0.1" modes="public"', ],
+    "passenger":  ["--vehicle-class", "passenger",  "--vclass", "passenger",  "--prefix", "veh",
+                   "--min-distance", "300",  "--trip-attributes", 'departLane="best"',
+                   "--fringe-start-attributes", 'departSpeed="max"',  "--allow-fringe.min-length", "1000",
+                   "--lanes", "--length", "--validate"],
+    "truck":      ["--vehicle-class", "truck",      "--vclass", "truck",      "--prefix", "truck", "--min-distance",
+                   "600",  "--trip-attributes", 'departLane="best"', "--validate"],
+    "bus":        ["--vehicle-class", "bus",        "--vclass", "bus",        "--prefix", "bus",   "--min-distance",
+                   "600",  "--trip-attributes",                'departLane="best"', "--validate"],
+    "motorcycle": ["--vehicle-class", "motorcycle", "--vclass", "motorcycle", "--prefix", "moto",  "--max-distance",
+                   "1200", "--trip-attributes", 'departLane="best"', "--validate"],
+    "bicycle":    ["--vehicle-class", "bicycle",    "--vclass", "bicycle",    "--prefix", "bike",  "--max-distance",
+                   "8000", "--trip-attributes", 'departLane="best"', "--validate"],
+    "tram":       ["--vehicle-class", "tram",       "--vclass", "tram",       "--prefix", "tram",  "--min-distance",
+                   "1200", "--trip-attributes",                'departLane="best"', "--validate"],
+    "rail_urban": ["--vehicle-class", "rail_urban", "--vclass", "rail_urban", "--prefix", "urban", "--min-distance",
+                   "1800", "--trip-attributes",                'departLane="best"', "--validate"],
+    "rail":       ["--vehicle-class", "rail",       "--vclass", "rail",       "--prefix", "rail",  "--min-distance",
+                   "2400", "--trip-attributes",                'departLane="best"', "--validate"],
+    "ship":       ["--vehicle-class", "ship",       "--vclass", "ship",       "--prefix", "ship", "--validate"],
+    "pedestrian": ["--vehicle-class", "pedestrian", "--pedestrians", "--prefix", "ped",   "--max-distance",
+                   "2000", ],
+    "persontrips": ["--vehicle-class", "pedestrian", "--persontrips", "--prefix", "ped",
+                    "--trip-attributes", 'modes="public"', ],
 }
 
 vehicleNames = {
@@ -106,31 +118,46 @@ class Builder(object):
 
     def __init__(self, data, local):
         self.files = {}
+        self.files_relative = {}
         self.data = data
 
         self.tmp = None
         if local:
-            now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            now = data.get("testOutputDir",
+                           datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
             for base in ['', os.path.expanduser('~/Sumo')]:
                 try:
                     self.tmp = os.path.abspath(os.path.join(base, now))
                     os.makedirs(self.tmp)
                     break
-                except:
+                except Exception:
                     print("Cannot create directory '%s'" % self.tmp)
                     self.tmp = None
         if self.tmp is None:
             self.tmp = tempfile.mkdtemp()
 
         self.origDir = os.getcwd()
-        os.chdir(self.tmp)
         print("Building scenario in '%s'" % self.tmp)
 
     def report(self, message):
         pass
 
-    def filename(self, use, name):
-        self.files[use] = self.prefix + name
+    def filename(self, use, name, usePrefix=True):
+        prefix = self.prefix if usePrefix else ''
+        self.files_relative[use] = prefix + name
+        self.files[use] = os.path.join(self.tmp, prefix + name)
+
+    def getRelative(self, options):
+        result = []
+        dirname = self.tmp
+        l = len(dirname)
+        for o in options:
+            if type(o) in [str,unicode] and o[0:l] == dirname:
+                remove = o[:l+1]
+                result.append(o.replace(remove, ''))
+            else:
+                result.append(o)
+        return result
 
     def build(self):
         # output name for the osm file, will be used by osmBuild, can be
@@ -146,7 +173,7 @@ class Builder(object):
         else:
             self.report("Downloading map data")
             osmGet.get(
-                ["-b", ",".join(map(str, self.data["coords"])), "-p", self.prefix])
+                ["-b", ",".join(map(str, self.data["coords"])), "-p", self.prefix, "-d", self.tmp])
 
         options = ["-f", self.files["osm"], "-p", self.prefix, "-d", self.tmp]
         self.additionalFiles = []
@@ -180,6 +207,7 @@ class Builder(object):
             netconvertOptions += ",--ptline-output,%s" % self.files["ptlines"]
             self.additionalFiles.append(self.files["stops"])
             self.routenames.append(self.files["ptroutes"])
+            netconvertOptions += ",--railway.topology.repair"
         if self.data["leftHand"]:
             netconvertOptions += ",--lefthand"
 
@@ -191,6 +219,9 @@ class Builder(object):
         ptOptions = None
         if self.data["publicTransport"]:
             self.report("Generating public transport schedule")
+            self.filename("pt_stopinfos", "stopinfos.xml", False)
+            self.filename("pt_vehroutes", "vehroutes.xml", False)
+            self.filename("pt_trips", "trips.trips.xml", False)
             ptOptions = [
                 "-n", self.files["net"],
                 "-e", self.data["duration"],
@@ -201,11 +232,13 @@ class Builder(object):
                 "--ptlines", self.files["ptlines"],
                 "-o", self.files["ptroutes"],
                 "--ignore-errors",
-                #"--no-vtypes",
+                # "--no-vtypes",
                 "--vtype-prefix", "pt_",
+                "--stopinfos-file", self.files["pt_stopinfos"],
+                "--routes-file", self.files["pt_vehroutes"],
+                "--trips-file", self.files["pt_trips"],
                 "--verbose",
-                "--flow-attributes", 'departPos="0"',
-                ]
+            ]
             ptlines2flows.main(ptlines2flows.get_options(ptOptions))
 
         if self.data["vehicles"] or ptOptions:
@@ -213,7 +246,7 @@ class Builder(object):
             # be used by sumo-gui
             randomTripsCalls = []
 
-            self.edges = sumolib.net.readNet(self.files["net"]).getEdges()
+            self.edges = sumolib.net.readNet(os.path.join(self.tmp, self.files["net"])).getEdges()
 
             for vehicle, options in self.data["vehicles"].items():
                 self.report("Processing %s" % vehicleNames[vehicle])
@@ -248,16 +281,18 @@ class Builder(object):
                 SUMO_HOME_VAR, "tools", "randomTrips.py")
             ptlines2flowsPath = os.path.join(
                 SUMO_HOME_VAR, "tools", "ptlines2flows.py")
-            batchFile = "build.bat"
+
+            self.filename("build.bat", "build.bat", False)
+            batchFile = self.files["build.bat"]
             with open(batchFile, 'w') as f:
                 if os.name == "posix":
                     f.write("#!/bin/bash\n")
                 if ptOptions is not None:
                     f.write("python \"%s\" %s\n" %
-                            (ptlines2flowsPath, " ".join(map(quoted_str, ptOptions))))
+                            (ptlines2flowsPath, " ".join(map(quoted_str, self.getRelative(ptOptions)))))
                 for opts in sorted(randomTripsCalls):
                     f.write("python \"%s\" %s\n" %
-                            (randomTripsPath, " ".join(map(quoted_str, opts))))
+                            (randomTripsPath, " ".join(map(quoted_str, self.getRelative(opts)))))
 
     def parseTripOpts(self, vehicle, options, publicTransport):
         "Return an option list for randomTrips.py for a given vehicle"
@@ -294,36 +329,36 @@ class Builder(object):
         sumo = sumolib.checkBinary("sumo")
 
         self.filename("config", ".sumocfg")
-        opts = [sumo, "-n", self.files["net"], "--gui-settings-file", self.files["guisettings"],
+        opts = [sumo, "-n", self.files_relative["net"], "--gui-settings-file", self.files_relative["guisettings"],
                 "--duration-log.statistics",
                 "--device.rerouting.adaptation-steps", "180",
-                "-v", "--no-step-log", "--save-configuration", self.files["config"], "--ignore-route-errors"]
+                "-v", "--no-step-log", "--save-configuration", self.files_relative["config"], "--ignore-route-errors"]
 
         if self.routenames:
-            opts += ["-r", ",".join(self.routenames)]
+            opts += ["-r", ",".join(self.getRelative(self.routenames))]
 
         if len(self.additionalFiles) > 0:
-            opts += ["-a", ",".join(self.additionalFiles)]
+            opts += ["-a", ",".join(self.getRelative(self.additionalFiles))]
 
-        subprocess.call(opts)
+        subprocess.call(opts, cwd=self.tmp)
 
     def createBatch(self):
         "Create a batch / bash file "
 
         # use bat as extension, as only Windows needs the extension .bat
-        self.files["batch"] = "run.bat"
+        self.filename("run.bat", "run.bat", False)
 
-        with open(self.files["batch"], "w") as batchfile:
-            batchfile.write("sumo-gui -c " + self.files["config"])
+        with open(self.files["run.bat"], "w") as batchfile:
+            batchfile.write("sumo-gui -c " + self.files_relative["config"])
 
-        os.chmod(self.files["batch"], BATCH_MODE)
+        os.chmod(self.files["run.bat"], BATCH_MODE)
 
     def openSUMO(self):
         self.report("Calling SUMO")
 
         sumogui = sumolib.checkBinary("sumo-gui")
 
-        subprocess.Popen([sumogui, "-c", self.files["config"]])
+        subprocess.Popen([sumogui, "-c", self.files["config"]], cwd=self.tmp)
 
     def createZip(self):
         "Create a zip file with everything inside which SUMO GUI needs, returns it base64 encoded"
@@ -333,7 +368,7 @@ class Builder(object):
         self.filename("zip", ".zip")
 
         with ZipFile(self.files["zip"], "w") as zipfile:
-            files = ["net", "guisettings", "config", "batch"]
+            files = ["net", "guisettings", "config", "run.bat", "build.bat"]
 
             if self.data["poly"]:
                 files += ["poly"]
@@ -357,7 +392,7 @@ class Builder(object):
     def finalize(self):
         try:
             shutil.rmtree(self.tmp)
-        except:
+        except Exception:
             pass
 
 
@@ -396,45 +431,46 @@ class OSMImporterWebSocket(WebSocket):
                 builder.finalize()
 
                 self.sendMessage(u"zip " + data)
-        except:
+        except Exception:
             print(traceback.format_exc())
             # reset 'Generate Scenario' button
             while self.steps > 0:
                 self.report("Recovering")
         os.chdir(builder.origDir)
 
+
 parser = ArgumentParser(
     description="OSM Web Wizard for SUMO - Websocket Server")
 parser.add_argument("--remote", action="store_true",
-                    help="In remote mode, SUMO GUI will not be automatically opened instead a zip file will be generated.")
-parser.add_argument("--testing", action="store_true",
-                    help="Only a pre-defined scenario will be generated for testing purposes.")
+                    help="In remote mode, SUMO GUI will not be automatically opened instead a zip file " +
+                    "will be generated.")
+parser.add_argument("--osm-file", default="osm_bbox.osm.xml", dest="osmFile", help="use input file from path.")
+parser.add_argument("--test-output", default=None, dest="testOutputDir",
+                    help="Run with pre-defined options on file 'osm_bbox.osm.xml' and write output to the given directory.")
 parser.add_argument("--address", default="", help="Address for the Websocket.")
 parser.add_argument("--port", type=int, default=8010,
                     help="Port for the Websocket. Please edit script.js when using an other port than 8010.")
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    OSMImporterWebSocket.local = args.testing or not args.remote
-    if args.testing:
+    OSMImporterWebSocket.local = args.testOutputDir is not None or not args.remote
+    if args.testOutputDir is not None:
         data = {u'duration': 900,
                 u'vehicles': {u'passenger': {u'count': 6, u'fringeFactor': 5},
                               u'bicycle': {u'count': 2, u'fringeFactor': 2},
                               u'pedestrian': {u'count': 4, u'fringeFactor': 1},
-                              u'rail_urban': {u'count': 8, u'fringeFactor': 40},
-                              u'bus': {u'count': 1, u'fringeFactor': 2},
                               u'ship': {u'count': 1, u'fringeFactor': 40}},
-                u'osm': os.path.abspath('osm_bbox.osm.xml'),
+                u'osm': os.path.abspath(args.osmFile),
                 u'poly': True,
                 u'publicTransport': True,
                 u'leftHand': False,
+                u'testOutputDir': args.testOutputDir,
                 }
         builder = Builder(data, True)
         builder.build()
         builder.makeConfigFile()
         builder.createBatch()
-        subprocess.call(
-            [sumolib.checkBinary("sumo"), "-c", builder.files["config"]])
+        subprocess.call([sumolib.checkBinary("sumo"), "-c", builder.files["config"]])
     else:
         if not args.remote:
             webbrowser.open("file://" +

@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <set>
 #include <vector>
@@ -35,7 +31,7 @@
 #include <utils/common/WrappingCommand.h>
 #include <utils/emissions/PollutantsInterface.h>
 #include <microsim/MSVehicle.h>
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 
 
 // ===========================================================================
@@ -59,7 +55,7 @@ class MSLane;
  * @see MSDevice
  * @see PollutantsInterface
  */
-class MSDevice_Emissions : public MSDevice {
+class MSDevice_Emissions : public MSVehicleDevice {
 public:
     /** @brief Inserts MSDevice_Emissions-options
      */
@@ -78,7 +74,7 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[in, filled] into The vector to store the built device in
      */
-    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into);
+    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
 
 
 public:

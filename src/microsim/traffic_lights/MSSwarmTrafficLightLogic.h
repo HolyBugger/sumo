@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 //#define SWARM_DEBUG
 #include <utils/common/SwarmDebug.h>
@@ -109,14 +105,14 @@ public:
      * @brief Constructor without sensors passed
      * @param[in] tlcontrol The tls control responsible for this tls
      * @param[in] id This tls' id
-     * @param[in] subid This tls' sub-id (program id)
+     * @param[in] programID This tls' sub-id (program id)
      * @param[in] phases Definitions of the phases
      * @param[in] step The initial phase index
      * @param[in] delay The time to wait before the first switch
      * @param[in] parameters Parameters defined for the tll
      */
     MSSwarmTrafficLightLogic(MSTLLogicControl& tlcontrol, const std::string& id,
-                             const std::string& subid, const Phases& phases, int step,
+                             const std::string& programID, const Phases& phases, int step,
                              SUMOTime delay,
                              const std::map<std::string, std::string>& parameters);
 
@@ -128,7 +124,7 @@ public:
      * @param[in] nb The detector builder
      * @exception ProcessError If something fails on initialisation
      */
-    void init(NLDetectorBuilder& nb) throw(ProcessError);
+    void init(NLDetectorBuilder& nb);
 
     SUMOTime getMaxCongestionDuration() {
         return TplConvert::_2int(getParameter("MAX_CONGESTION_DUR", "120").c_str());

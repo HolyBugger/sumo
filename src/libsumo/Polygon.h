@@ -21,15 +21,12 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <vector>
 #include <libsumo/TraCIDefs.h>
+#include <traci-server/TraCIConstants.h>
 
 
 // ===========================================================================
@@ -37,6 +34,9 @@
 // ===========================================================================
 class NamedRTree;
 class SUMOPolygon;
+namespace libsumo {
+class VariableWrapper;
+}
 
 
 // ===========================================================================
@@ -46,41 +46,52 @@ namespace libsumo {
 class Polygon {
 public:
     static std::vector<std::string> getIDList();
+    static int getIDCount();
     static std::string getType(const std::string& polygonID);
     static TraCIPositionVector getShape(const std::string& polygonID);
     static TraCIColor getColor(const std::string& polygonID);
     static bool getFilled(const std::string& polygonID);
-    static std::string getParameter(const std::string& polygonID, const std::string& paramName);
+    static double getLineWidth(const std::string& polygonID);
+    static std::string getParameter(const std::string& polygonID, const std::string& key);
     static void setType(const std::string& polygonID, const std::string& setType);
     static void setShape(const std::string& polygonID, const TraCIPositionVector& shape);
     static void setColor(const std::string& polygonID, const TraCIColor& c);
-    static void add(const std::string& polygonID, const TraCIPositionVector& shape, const TraCIColor& c, bool fill, const std::string& type, int layer);
+    static void add(const std::string& polygonID, const TraCIPositionVector& shape, const TraCIColor& color, bool fill = false, double lineWidth = 1, const std::string& polygonType = "", int layer = 0);
     static void remove(const std::string& polygonID, int layer = 0);
 
-    //static void subscribe(const std::string& objID, SUMOTime beginTime, SUMOTime endTime, const std::vector<int>& vars);
-    //static void subscribeContext(const std::string& objID, SUMOTime beginTime, SUMOTime endTime, int domain, double range, const std::vector<int>& vars);
-
     static void setFilled(std::string polygonID, bool filled);
-    static void setParameter(std::string& name, std::string& value, std::string& string);
+    static void setLineWidth(std::string polygonID, double lineWidth);
+    static void setParameter(const std::string& polygonID, const std::string& key, const std::string& value);
+
+    LIBSUMO_SUBSCRIPTION_API
 
     /** @brief Returns a tree filled with polygon instances
      * @return The rtree of polygons
      */
     static NamedRTree* getTree();
 
+    /** @brief Saves the shape of the requested object in the given container
+    *  @param id The id of the poi to retrieve
+    *  @param shape The container to fill
+    */
+    static void storeShape(const std::string& id, PositionVector& shape);
+
+    static std::shared_ptr<VariableWrapper> makeWrapper();
+
+    static bool handleVariable(const std::string& objID, const int variable, VariableWrapper* wrapper);
+
 private:
     static SUMOPolygon* getPolygon(const std::string& id);
 
+private:
+    static SubscriptionResults mySubscriptionResults;
+    static ContextSubscriptionResults myContextSubscriptionResults;
+
     /// @brief invalidated standard constructor
-    Polygon();
-
-    /// @brief invalidated copy constructor
-    Polygon(const Polygon& src);
-
-    /// @brief invalidated assignment operator
-    Polygon& operator=(const Polygon& src);
-
+    Polygon() = delete;
 };
+
+
 }
 
 

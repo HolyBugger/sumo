@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <cmath>
 #include <vector>
@@ -62,7 +58,6 @@
 #include "GUIEdge.h"
 #include "GUILane.h"
 
-//#define DRAW_BOUNDING_BOX
 //#define DEBUG_FOES
 
 // ===========================================================================
@@ -98,16 +93,16 @@ GUIVehicle::getParameterWindow(GUIMainWindow& app,
                                GUISUMOAbstractView&) {
     const int sublaneParams = MSGlobals::gLateralResolution > 0 ? 4 : 0;
     GUIParameterTableWindow* ret =
-        new GUIParameterTableWindow(app, *this, 37 + sublaneParams + (int)getParameter().getMap().size());
+        new GUIParameterTableWindow(app, *this, 37 + sublaneParams + (int)getParameter().getParametersMap().size());
     // add items
     ret->mkItem("lane [id]", false, Named::getIDSecure(myLane, "n/a"));
     if (MSAbstractLaneChangeModel::haveLateralDynamics()) {
         const MSLane* shadowLane = getLaneChangeModel().getShadowLane();
-        ret->mkItem("shadow lane [id]", false, shadowLane == 0 ? "" : shadowLane->getID());
+        ret->mkItem("shadow lane [id]", false, shadowLane == nullptr ? "" : shadowLane->getID());
     }
     if (MSGlobals::gLateralResolution > 0) {
         const MSLane* targetLane = getLaneChangeModel().getTargetLane();
-        ret->mkItem("target lane [id]", false, targetLane == 0 ? "" : targetLane->getID());
+        ret->mkItem("target lane [id]", false, targetLane == nullptr ? "" : targetLane->getID());
     }
     ret->mkItem("position [m]", true,
                 new FunctionBinding<GUIVehicle, double>(this, &MSVehicle::getPositionOnLane));
@@ -165,14 +160,7 @@ GUIVehicle::getParameterWindow(GUIMainWindow& app,
                 new FunctionBinding<GUIVehicle, double>(this, &MSVehicle::getElectricityConsumption));
     ret->mkItem("noise (Harmonoise) [dB]", true,
                 new FunctionBinding<GUIVehicle, double>(this, &MSVehicle::getHarmonoise_NoiseEmissions));
-    std::ostringstream str;
-    for (std::vector<MSDevice*>::const_iterator i = myDevices.begin(); i != myDevices.end(); ++i) {
-        if (i != myDevices.begin()) {
-            str << ' ';
-        }
-        str << (*i)->getID().substr(0, (*i)->getID().find(getID()));
-    }
-    ret->mkItem("devices", false, str.str());
+    ret->mkItem("devices", false, toString(myDevices));
     ret->mkItem("persons", true,
                 new FunctionBinding<GUIVehicle, int>(this, &MSVehicle::getPersonNumber));
     ret->mkItem("containers", true,
@@ -194,10 +182,10 @@ GUIParameterTableWindow*
 GUIVehicle::getTypeParameterWindow(GUIMainWindow& app,
                                    GUISUMOAbstractView&) {
     GUIParameterTableWindow* ret =
-        new GUIParameterTableWindow(app, *this, 25 
-                + (int)myType->getParameter().getMap().size()
-                + (int)myType->getParameter().lcParameter.size()
-                + (int)myType->getParameter().jmParameter.size());
+        new GUIParameterTableWindow(app, *this, 25
+                                    + (int)myType->getParameter().getParametersMap().size()
+                                    + (int)myType->getParameter().lcParameter.size()
+                                    + (int)myType->getParameter().jmParameter.size());
     // add items
     ret->mkItem("Type Information:", false, "");
     ret->mkItem("type [id]", false, myType->getID());
@@ -241,57 +229,16 @@ GUIVehicle::getTypeParameterWindow(GUIMainWindow& app,
 
 
 
-
-void
-GUIVehicle::drawAction_drawPersonsAndContainers(const GUIVisualizationSettings& s) const {
-    if (myPersonDevice != 0) {
-        const std::vector<MSTransportable*>& ps = myPersonDevice->getTransportables();
-        int personIndex = 0;
-        for (std::vector<MSTransportable*>::const_iterator i = ps.begin(); i != ps.end(); ++i) {
-            GUIPerson* person = dynamic_cast<GUIPerson*>(*i);
-            assert(person != 0);
-            person->setPositionInVehicle(getSeatPosition(personIndex++));
-            person->drawGL(s);
-        }
-    }
-    if (myContainerDevice != 0) {
-        const std::vector<MSTransportable*>& cs = myContainerDevice->getTransportables();
-        int containerIndex = 0;
-        for (std::vector<MSTransportable*>::const_iterator i = cs.begin(); i != cs.end(); ++i) {
-            GUIContainer* container = dynamic_cast<GUIContainer*>(*i);
-            assert(container != 0);
-            container->setPositionInVehicle(getSeatPosition(containerIndex++));
-            container->drawGL(s);
-        }
-    }
-#ifdef DRAW_BOUNDING_BOX
-    glPushName(getGlID());
-    glPushMatrix();
-    glTranslated(0, 0, getType());
-    PositionVector boundingBox = getBoundingBox();
-    boundingBox.push_back(boundingBox.front());
-    PositionVector smallBB = getBoundingPoly();
-    glColor3d(0, .8, 0);
-    GLHelper::drawLine(boundingBox);
-    glColor3d(0.5, .8, 0);
-    GLHelper::drawLine(smallBB);
-    //GLHelper::drawBoxLines(getBoundingBox(), 0.5);
-    glPopMatrix();
-    glPopName();
-#endif
-}
-
-
 void
 GUIVehicle::drawAction_drawLinkItems(const GUIVisualizationSettings& s) const {
     glTranslated(0, 0, getType() + .2); // draw on top of cars
     for (DriveItemVector::const_iterator i = myLFLinkLanes.begin(); i != myLFLinkLanes.end(); ++i) {
-        if ((*i).myLink == 0) {
+        if ((*i).myLink == nullptr) {
             continue;
         }
         MSLink* link = (*i).myLink;
         MSLane* via = link->getViaLaneOrLane();
-        if (via != 0) {
+        if (via != nullptr) {
             Position p = via->getShape()[0];
             if ((*i).mySetRequest) {
                 glColor3d(0, .8, 0);
@@ -452,7 +399,7 @@ GUIVehicle::getColorValue(int activeScheme) const {
         case 22:
             return gSelected.isSelected(GLO_VEHICLE, getGlID());
         case 23:
-            return getBestLaneOffset();
+            return getLaneChangeModel().isOpposite() ? -100 : getBestLaneOffset();
         case 24:
             return getAcceleration();
         case 25:
@@ -517,7 +464,7 @@ GUIVehicle::drawRouteHelper(const GUIVisualizationSettings& s, const MSRoute& r)
             ++bestLaneIndex;
         } else {
             const std::vector<MSLane*>* allowed = (*i)->allowedLanes(getVClass());
-            if (allowed != 0 && allowed->size() != 0) {
+            if (allowed != nullptr && allowed->size() != 0) {
                 lane = static_cast<GUILane*>((*allowed)[0]);
             } else {
                 lane = static_cast<GUILane*>((*i)->getLanes()[0]);
@@ -684,7 +631,7 @@ GUIVehicle::drawAction_drawRailCarriages(const GUIVisualizationSettings& s, doub
 
 int
 GUIVehicle::getNumPassengers() const {
-    if (myPersonDevice != 0) {
+    if (myPersonDevice != nullptr) {
         return (int)myPersonDevice->size();
     }
     return 0;
@@ -734,6 +681,8 @@ GUIVehicle::getStopInfo() const {
         result += ", containerTriggered";
     } else if (myStops.front().collision) {
         result += ", collision";
+    } else if (myStops.front().pars.until != -1) {
+        result += ", until=" + time2string(myStops.front().pars.until);
     } else {
         result += ", duration=" + time2string(myStops.front().duration);
     }
@@ -744,29 +693,34 @@ GUIVehicle::getStopInfo() const {
 void
 GUIVehicle::selectBlockingFoes() const {
     double dist = myLane->getLength() - getPositionOnLane();
+#ifdef DEBUG_FOES
+    std::cout << SIMTIME << " selectBlockingFoes veh=" << getID() << " dist=" << dist << " numLinks=" << myLFLinkLanes.size() << "\n";
+#endif
     for (DriveItemVector::const_iterator i = myLFLinkLanes.begin(); i != myLFLinkLanes.end(); ++i) {
         const DriveProcessItem& dpi = *i;
-        if (dpi.myLink == 0) {
+        if (dpi.myLink == nullptr) {
+            /// XXX if the vehicle intends to stop on an intersection, there could be a relevant exitLink (see #4299)
             continue;
         }
         std::vector<const SUMOVehicle*> blockingFoes;
         std::vector<const MSPerson*> blockingPersons;
 #ifdef DEBUG_FOES
+        std::cout << "   foeLink=" << dpi.myLink->getViaLaneOrLane()->getID() << "\n";
         const bool isOpen =
 #endif
             dpi.myLink->opened(dpi.myArrivalTime, dpi.myArrivalSpeed, dpi.getLeaveSpeed(), getVehicleType().getLength(),
                                getImpatience(), getCarFollowModel().getMaxDecel(), getWaitingTime(), getLateralPositionOnLane(), &blockingFoes);
 #ifdef DEBUG_FOES
         if (!isOpen) {
-            std::cout << SIMTIME << " veh=" << getID() << " foes at link=" << dpi.myLink->getViaLaneOrLane()->getID() << ":\n";
+            std::cout << "     closed due to:\n";
             for (std::vector<const SUMOVehicle*>::const_iterator it = blockingFoes.begin(); it != blockingFoes.end(); ++it) {
                 std::cout << "   " << (*it)->getID() << "\n";
             }
         }
 #endif
-        if (getLaneChangeModel().getShadowLane() != 0) {
+        if (getLaneChangeModel().getShadowLane() != nullptr) {
             MSLink* parallelLink = dpi.myLink->getParallelLink(getLaneChangeModel().getShadowDirection());
-            if (parallelLink != 0) {
+            if (parallelLink != nullptr) {
                 const double shadowLatPos = getLateralPositionOnLane() - getLaneChangeModel().getShadowDirection() * 0.5 * (
                                                 myLane->getWidth() + getLaneChangeModel().getShadowLane()->getWidth());
 #ifdef DEBUG_FOES
@@ -778,7 +732,7 @@ GUIVehicle::selectBlockingFoes() const {
                                          getWaitingTime(), shadowLatPos, &blockingFoes);
 #ifdef DEBUG_FOES
                 if (!isShadowOpen) {
-                    std::cout << SIMTIME << " veh=" << getID() << " foes at shadow link=" << parallelLink->getViaLaneOrLane()->getID() << ":\n";
+                    std::cout <<  "    foes at shadow link=" << parallelLink->getViaLaneOrLane()->getID() << ":\n";
                     for (std::vector<const SUMOVehicle*>::const_iterator it = blockingFoes.begin(); it != blockingFoes.end(); ++it) {
                         std::cout << "   " << (*it)->getID() << "\n";
                     }
@@ -789,21 +743,27 @@ GUIVehicle::selectBlockingFoes() const {
         for (std::vector<const SUMOVehicle*>::const_iterator it = blockingFoes.begin(); it != blockingFoes.end(); ++it) {
             gSelected.select(static_cast<const GUIVehicle*>(*it)->getGlID());
         }
+#ifdef DEBUG_FOES
+        gDebugFlag1 = true;
+#endif
         const MSLink::LinkLeaders linkLeaders = (dpi.myLink)->getLeaderInfo(this, dist, &blockingPersons);
+#ifdef DEBUG_FOES
+        gDebugFlag1 = false;
+#endif
         for (MSLink::LinkLeaders::const_iterator it = linkLeaders.begin(); it != linkLeaders.end(); ++it) {
             // the vehicle to enter the junction first has priority
             const GUIVehicle* leader = dynamic_cast<const GUIVehicle*>(it->vehAndGap.first);
-            if (leader != 0) {
+            if (leader != nullptr) {
                 if (dpi.myLink->isLeader(this, leader)) {
                     gSelected.select(leader->getGlID());
 #ifdef DEBUG_FOES
-                    std::cout << SIMTIME << " veh=" << getID() << " linkLeader at link=" << dpi.myLink->getViaLaneOrLane()->getID() << " foe=" << leader->getID() << "\n";
+                    std::cout << "      linkLeader=" << leader->getID() << "\n";
 #endif
                 }
             } else {
                 for (std::vector<const MSPerson*>::iterator it_p = blockingPersons.begin(); it_p != blockingPersons.end(); ++it_p) {
                     const GUIPerson* foe = dynamic_cast<const GUIPerson*>(*it_p);
-                    if (foe != 0) {
+                    if (foe != nullptr) {
                         gSelected.select(foe->getGlID());
                         //std::cout << SIMTIME << " veh=" << getID() << " is blocked on link " << dpi.myLink->getRespondIndex() << " to " << dpi.myLink->getViaLaneOrLane()->getID() << " by pedestrian. dist=" << it->second << "\n";
                     }
@@ -819,7 +779,7 @@ void
 GUIVehicle::drawOutsideNetwork(bool add) {
     GUIMainWindow* mw = GUIMainWindow::getInstance();
     GUISUMOAbstractView* view = mw->getActiveView();
-    if (view != 0) {
+    if (view != nullptr) {
         if (add) {
             if ((myAdditionalVisualizations[view] & VO_DRAW_OUTSIDE_NETWORK) == 0) {
                 myAdditionalVisualizations[view] |= VO_DRAW_OUTSIDE_NETWORK;

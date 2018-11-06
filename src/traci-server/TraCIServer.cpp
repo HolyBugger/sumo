@@ -28,11 +28,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #ifdef HAVE_VERSION_H
 #include <version.h>
@@ -68,6 +64,7 @@
 #include <microsim/MSGlobals.h>
 #include <microsim/traffic_lights/MSTLLogicControl.h>
 #include <libsumo/Simulation.h>
+#include <libsumo/Subscription.h>
 #include "TraCIConstants.h"
 #include "TraCIServer.h"
 #include "TraCIServerAPI_InductionLoop.h"
@@ -91,22 +88,93 @@
 // ===========================================================================
 //#define DEBUG_MULTI_CLIENTS
 //#define DEBUG_SUBSCRIPTIONS
+//#define DEBUG_SUBSCRIPTION_FILTERS
 
 
 // ===========================================================================
 // static member definitions
 // ===========================================================================
-TraCIServer* TraCIServer::myInstance = 0;
+TraCIServer* TraCIServer::myInstance = nullptr;
 bool TraCIServer::myDoCloseConnection = false;
 
 
 // ===========================================================================
 // method definitions
 // ===========================================================================
+void
+TraCIServer::initWrapper(const int domainID, const int variable, const std::string& objID) {
+    myWrapperStorage.reset();
+    myWrapperStorage.writeUnsignedByte(domainID);
+    myWrapperStorage.writeUnsignedByte(variable);
+    myWrapperStorage.writeString(objID);
+}
+
+
+bool
+TraCIServer::wrapDouble(const std::string& /* objID */, const int /* variable */, const double value) {
+    myWrapperStorage.writeUnsignedByte(TYPE_DOUBLE);
+    myWrapperStorage.writeDouble(value);
+    return true;
+}
+
+
+bool
+TraCIServer::wrapInt(const std::string& /* objID */, const int /* variable */, const int value) {
+    myWrapperStorage.writeUnsignedByte(TYPE_INTEGER);
+    myWrapperStorage.writeInt(value);
+    return true;
+}
+
+
+bool
+TraCIServer::wrapString(const std::string& /* objID */, const int /* variable */, const std::string& value) {
+    myWrapperStorage.writeUnsignedByte(TYPE_STRING);
+    myWrapperStorage.writeString(value);
+    return true;
+}
+
+
+bool
+TraCIServer::wrapStringList(const std::string& /* objID */, const int /* variable */, const std::vector<std::string>& value) {
+    myWrapperStorage.writeUnsignedByte(TYPE_STRINGLIST);
+    myWrapperStorage.writeStringList(value);
+    return true;
+}
+
+
+bool
+TraCIServer::wrapPosition(const std::string& /* objID */, const int variable, const libsumo::TraCIPosition& value) {
+    const bool includeZ = variable == VAR_POSITION3D;
+    myWrapperStorage.writeUnsignedByte(includeZ ? POSITION_3D : POSITION_2D);
+    myWrapperStorage.writeDouble(value.x);
+    myWrapperStorage.writeDouble(value.y);
+    if (includeZ) {
+        myWrapperStorage.writeDouble(value.z);
+    }
+    return true;
+}
+
+
+bool
+TraCIServer::wrapColor(const std::string& /* objID */, const int /* variable */, const libsumo::TraCIColor& value) {
+    myWrapperStorage.writeUnsignedByte(TYPE_COLOR);
+    myWrapperStorage.writeUnsignedByte(value.r);
+    myWrapperStorage.writeUnsignedByte(value.g);
+    myWrapperStorage.writeUnsignedByte(value.b);
+    myWrapperStorage.writeUnsignedByte(value.a);
+    return true;
+}
+
+
+tcpip::Storage&
+TraCIServer::getWrapperStorage() {
+    return myWrapperStorage;
+}
+
+
+
 TraCIServer::TraCIServer(const SUMOTime begin, const int port, const int numClients)
-    : myServerSocket(0),
-      myTargetTime(begin),
-      myAmEmbedded(port == 0) {
+    : myServerSocket(nullptr), myTargetTime(begin), myAmEmbedded(port == 0), myLastContextSubscription(nullptr) {
 #ifdef DEBUG_MULTI_CLIENTS
     std::cout << "Creating new TraCIServer for " << numClients << " clients on port " << port << "." << std::endl;
 #endif
@@ -121,6 +189,7 @@ TraCIServer::TraCIServer(const SUMOTime begin, const int port, const int numClie
     myVehicleStateChanges[MSNet::VEHICLE_STATE_STARTING_STOP] = std::vector<std::string>();
     myVehicleStateChanges[MSNet::VEHICLE_STATE_ENDING_STOP] = std::vector<std::string>();
     myVehicleStateChanges[MSNet::VEHICLE_STATE_COLLISION] = std::vector<std::string>();
+    myVehicleStateChanges[MSNet::VEHICLE_STATE_EMERGENCYSTOP] = std::vector<std::string>();
 
     myExecutors[CMD_GET_INDUCTIONLOOP_VARIABLE] = &TraCIServerAPI_InductionLoop::processGet;
     myExecutors[CMD_GET_LANEAREA_VARIABLE] = &TraCIServerAPI_LaneArea::processGet;
@@ -177,6 +246,7 @@ TraCIServer::TraCIServer(const SUMOTime begin, const int port, const int numClie
                 mySockets[index]->vehicleStateChanges[MSNet::VEHICLE_STATE_STARTING_STOP] = std::vector<std::string>();
                 mySockets[index]->vehicleStateChanges[MSNet::VEHICLE_STATE_ENDING_STOP] = std::vector<std::string>();
                 mySockets[index]->vehicleStateChanges[MSNet::VEHICLE_STATE_COLLISION] = std::vector<std::string>();
+                mySockets[index]->vehicleStateChanges[MSNet::VEHICLE_STATE_EMERGENCYSTOP] = std::vector<std::string>();
             }
             // When got here, all clients have connected
             if (numClients > 1) {
@@ -203,7 +273,7 @@ TraCIServer::~TraCIServer() {
 // ---------- Initialisation and Shutdown
 void
 TraCIServer::openSocket(const std::map<int, CmdExecutor>& execs) {
-    if (myInstance == 0 && !myDoCloseConnection && (OptionsCont::getOptions().getInt("remote-port") != 0
+    if (myInstance == nullptr && !myDoCloseConnection && (OptionsCont::getOptions().getInt("remote-port") != 0
 #ifdef HAVE_PYTHON
             || OptionsCont::getOptions().isSet("python-script")
 #endif
@@ -215,20 +285,21 @@ TraCIServer::openSocket(const std::map<int, CmdExecutor>& execs) {
             myInstance->myExecutors[i->first] = i->second;
         }
     }
-    if (myInstance != 0) {
+    if (myInstance != nullptr) {
         // maybe net was deleted and built again
         MSNet::getInstance()->addVehicleStateListener(myInstance);
+        myInstance->mySubscriptionCache.writeInt(0);
     }
 }
 
 
 void
 TraCIServer::close() {
-    if (myInstance == 0) {
+    if (myInstance == nullptr) {
         return;
     }
     delete myInstance;
-    myInstance = 0;
+    myInstance = nullptr;
     myDoCloseConnection = true;
 }
 
@@ -243,7 +314,7 @@ TraCIServer::wasClosed() {
 
 
 void
-TraCIServer::vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to) {
+TraCIServer::vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to, const std::string& /*info*/) {
     if (!myDoCloseConnection) {
         myVehicleStateChanges[to].push_back(vehicle->getID());
         if (!myAmEmbedded) {
@@ -253,6 +324,7 @@ TraCIServer::vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::Vehicl
         }
     }
 }
+
 
 void
 TraCIServer::checkClientOrdering() {
@@ -557,7 +629,6 @@ TraCIServer::processCommandsUntilSimStep(SUMOTime step) {
         for (std::map<MSNet::VehicleState, std::vector<std::string> >::iterator i = myVehicleStateChanges.begin(); i != myVehicleStateChanges.end(); ++i) {
             (*i).second.clear();
         }
-
     } catch (std::invalid_argument& e) {
         throw ProcessError(e.what());
     } catch (libsumo::TraCIException& e) {
@@ -748,12 +819,12 @@ TraCIServer::dispatchCommand() {
                 break;
             }
             case CMD_SIMSTEP: {
-                SUMOTime nextT = myInputStorage.readInt();
+                const double nextT = myInputStorage.readDouble();
                 if (myAmEmbedded) {
-                    if (nextT == 0) {
+                    if (nextT == 0.) {
                         myTargetTime += DELTA_T;
                     } else {
-                        myTargetTime = nextT;
+                        myTargetTime = TIME2STEPS(nextT);
                     }
                     for (std::map<MSNet::VehicleState, std::vector<std::string> >::iterator i = myVehicleStateChanges.begin(); i != myVehicleStateChanges.end(); ++i) {
                         (*i).second.clear();
@@ -763,10 +834,10 @@ TraCIServer::dispatchCommand() {
                     }
                     postProcessSimulationStep();
                 } else {
-                    if (nextT == 0) {
+                    if (nextT == 0.) {
                         myCurrentSocket->second->targetTime += DELTA_T;
                     } else {
-                        myCurrentSocket->second->targetTime = nextT;
+                        myCurrentSocket->second->targetTime = TIME2STEPS(nextT);
                     }
 #ifdef DEBUG_MULTI_CLIENTS
                     std::cout << "       commandId == CMD_SIMSTEP"
@@ -842,8 +913,15 @@ TraCIServer::dispatchCommand() {
             case CMD_SUBSCRIBE_GUI_CONTEXT:
                 success = addObjectVariableSubscription(commandId, true);
                 break;
+            case CMD_ADD_SUBSCRIPTION_FILTER:
+                success = addSubscriptionFilter();
+                break;
             default:
-                writeStatusCmd(commandId, RTYPE_NOTIMPLEMENTED, "Command not implemented in sumo");
+                if (commandId == CMD_GET_GUI_VARIABLE || commandId == CMD_SET_GUI_VARIABLE) {
+                    writeStatusCmd(commandId, RTYPE_NOTIMPLEMENTED, "GUI is not running, command not implemented in command line sumo");
+                } else {
+                    writeStatusCmd(commandId, RTYPE_NOTIMPLEMENTED, "Command not implemented in sumo");
+                }
         }
     }
     if (!success) {
@@ -895,7 +973,7 @@ TraCIServer::postProcessSimulationStep() {
         const libsumo::Subscription& s = *i;
         bool isArrivedVehicle = (s.commandId == CMD_SUBSCRIBE_VEHICLE_VARIABLE || s.commandId == CMD_SUBSCRIBE_VEHICLE_CONTEXT)
                                 && (find(myVehicleStateChanges[MSNet::VEHICLE_STATE_ARRIVED].begin(), myVehicleStateChanges[MSNet::VEHICLE_STATE_ARRIVED].end(), s.id) != myVehicleStateChanges[MSNet::VEHICLE_STATE_ARRIVED].end());
-        bool isArrivedPerson = (s.commandId == CMD_SUBSCRIBE_PERSON_VARIABLE || s.commandId == CMD_SUBSCRIBE_PERSON_CONTEXT) && MSNet::getInstance()->getPersonControl().get(s.id) == 0;
+        bool isArrivedPerson = (s.commandId == CMD_SUBSCRIBE_PERSON_VARIABLE || s.commandId == CMD_SUBSCRIBE_PERSON_CONTEXT) && MSNet::getInstance()->getPersonControl().get(s.id) == nullptr;
         if ((s.endTime < t) || isArrivedVehicle || isArrivedPerson) {
             i = mySubscriptions.erase(i);
             continue;
@@ -991,9 +1069,10 @@ TraCIServer::writeErrorStatusCmd(int commandId, const std::string& description, 
 
 
 void
-TraCIServer::initialiseSubscription(const libsumo::Subscription& s) {
+TraCIServer::initialiseSubscription(libsumo::Subscription& s) {
     tcpip::Storage writeInto;
     std::string errors;
+    libsumo::Subscription* modifiedSubscription = nullptr;
     if (processSingleSubscription(s, writeInto, errors)) {
         if (s.endTime < MSNet::getInstance()->getCurrentTimeStep()) {
             writeStatusCmd(s.commandId, RTYPE_ERR, "Subscription has ended.");
@@ -1012,11 +1091,13 @@ TraCIServer::initialiseSubscription(const libsumo::Subscription& s) {
                         }
                     }
                     needNewSubscription = false;
+                    modifiedSubscription = &o;
                     break;
                 }
             }
             if (needNewSubscription) {
                 mySubscriptions.push_back(s);
+                modifiedSubscription = &mySubscriptions.back();
                 // Add new subscription to subscription cache (note: seems a bit inefficient)
                 if (s.beginTime < MSNet::getInstance()->getCurrentTimeStep()) {
                     // copy new subscription into cache
@@ -1033,6 +1114,13 @@ TraCIServer::initialiseSubscription(const libsumo::Subscription& s) {
             }
             writeStatusCmd(s.commandId, RTYPE_OK, "");
         }
+        if (modifiedSubscription != nullptr && isVehicleToVehicleContextSubscription(*modifiedSubscription)) {
+            // Set last modified vehicle context subscription active for filter modifications
+            myLastContextSubscription = modifiedSubscription;
+        } else {
+            // adding other subscriptions deactivates the activation for filter addition
+            myLastContextSubscription = nullptr;
+        }
     } else {
         writeStatusCmd(s.commandId, RTYPE_ERR, "Could not add subscription (" + errors + ").");
     }
@@ -1043,9 +1131,14 @@ TraCIServer::initialiseSubscription(const libsumo::Subscription& s) {
 void
 TraCIServer::removeSubscription(int commandId, const std::string& id, int domain) {
     bool found = false;
-    for (std::vector<libsumo::Subscription>::iterator j = mySubscriptions.begin(); j != mySubscriptions.end();) {
-        if ((*j).id == id && (*j).commandId == commandId && (domain < 0 || (*j).contextDomain == domain)) {
+    std::vector<libsumo::Subscription>::iterator j;
+    for (j = mySubscriptions.begin(); j != mySubscriptions.end();) {
+        if (j->id == id && j->commandId == commandId && (domain < 0 || j->contextDomain == domain)) {
             j = mySubscriptions.erase(j);
+            if (j != mySubscriptions.end() && myLastContextSubscription == &(*j)) {
+                // Remove also reference for filter additions
+                myLastContextSubscription = nullptr;
+            }
             found = true;
             continue;
         }
@@ -1055,86 +1148,15 @@ TraCIServer::removeSubscription(int commandId, const std::string& id, int domain
     if (found) {
         writeStatusCmd(commandId, RTYPE_OK, "");
     } else {
-        writeStatusCmd(commandId, RTYPE_OK, "The subscription to remove was not found.");
+        writeStatusCmd(commandId, RTYPE_ERR, "The subscription to remove was not found.");
     }
 }
-
 
 bool
-TraCIServer::findObjectShape(int domain, const std::string& id, PositionVector& shape) {
-    Position p;
-    switch (domain) {
-        case CMD_SUBSCRIBE_INDUCTIONLOOP_CONTEXT:
-            if (TraCIServerAPI_InductionLoop::getPosition(id, p)) {
-                shape.push_back(p);
-                return true;
-            }
-            break;
-        case CMD_SUBSCRIBE_MULTIENTRYEXIT_CONTEXT:
-            break;
-        case CMD_SUBSCRIBE_TL_CONTEXT:
-            break;
-        case CMD_SUBSCRIBE_LANE_CONTEXT:
-            if (TraCIServerAPI_Lane::getShape(id, shape)) {
-                return true;
-            }
-            break;
-        case CMD_SUBSCRIBE_VEHICLE_CONTEXT:
-            if (TraCIServerAPI_Vehicle::getPosition(id, p)) {
-                shape.push_back(p);
-                return true;
-            }
-            break;
-        case CMD_SUBSCRIBE_PERSON_CONTEXT:
-            if (TraCIServerAPI_Person::getPosition(id, p)) {
-                shape.push_back(p);
-                return true;
-            }
-            break;
-        case CMD_SUBSCRIBE_VEHICLETYPE_CONTEXT:
-            break;
-        case CMD_SUBSCRIBE_ROUTE_CONTEXT:
-            break;
-        case CMD_SUBSCRIBE_POI_CONTEXT:
-            if (TraCIServerAPI_POI::getPosition(id, p)) {
-                shape.push_back(p);
-                return true;
-            }
-            return false;
-        case CMD_SUBSCRIBE_POLYGON_CONTEXT:
-            if (TraCIServerAPI_Polygon::getShape(id, shape)) {
-                return true;
-            }
-            break;
-        case CMD_SUBSCRIBE_JUNCTION_CONTEXT: {
-            const MSJunction* const j = MSNet::getInstance()->getJunctionControl().get(id);
-            if (j != nullptr) {
-                shape.push_back(j->getPosition());
-                return true;
-            }
-            break;
-        }
-        case CMD_SUBSCRIBE_EDGE_CONTEXT: {
-            const MSEdge* const e = MSEdge::dictionary(id);
-            if (e != nullptr) {
-                const std::vector<MSLane*>& lanes = e->getLanes();
-                shape = lanes.front()->getShape();
-                if (lanes.size() > 1) {
-                    copy(lanes.back()->getShape().begin(), lanes.back()->getShape().end(), back_inserter(shape));
-                }
-                return true;
-            }
-            break;
-        }
-        case CMD_SUBSCRIBE_SIM_CONTEXT:
-            break;
-        case CMD_SUBSCRIBE_GUI_CONTEXT:
-            break;
-        default:
-            break;
-    }
-    return false;
+TraCIServer::isVehicleToVehicleContextSubscription(const libsumo::Subscription& s) {
+    return (s.commandId == CMD_SUBSCRIBE_VEHICLE_CONTEXT && s.contextDomain == CMD_GET_VEHICLE_VARIABLE);
 }
+
 
 bool
 TraCIServer::processSingleSubscription(const libsumo::Subscription& s, tcpip::Storage& writeInto,
@@ -1144,11 +1166,12 @@ TraCIServer::processSingleSubscription(const libsumo::Subscription& s, tcpip::St
     const int getCommandId = s.contextDomain > 0 ? s.contextDomain : s.commandId - 0x30;
     std::set<std::string> objIDs;
     if (s.contextDomain > 0) {
-        PositionVector shape;
-        if (!findObjectShape(s.commandId, s.id, shape)) {
-            return false;
+        if ((s.activeFilters & libsumo::SUBS_FILTER_NO_RTREE) == 0) {
+            PositionVector shape;
+            libsumo::Helper::findObjectShape(s.commandId, s.id, shape);
+            libsumo::Helper::collectObjectsInRange(s.contextDomain, shape, s.range, objIDs);
         }
-        libsumo::Helper::collectObjectsInRange(s.contextDomain, shape, s.range, objIDs);
+        libsumo::Helper::applySubscriptionFilters(s, objIDs);
     } else {
         objIDs.insert(s.id);
     }
@@ -1156,10 +1179,10 @@ TraCIServer::processSingleSubscription(const libsumo::Subscription& s, tcpip::St
     int skipped = 0;
     for (std::set<std::string>::iterator j = objIDs.begin(); j != objIDs.end(); ++j) {
         if (s.contextDomain > 0) {
-            if (centralObject(s, *j)) {
-                skipped++;
-                continue;
-            }
+            //if (centralObject(s, *j)) {
+            //    skipped++;
+            //    continue;
+            //}
             outputStorage.writeString(*j);
         }
         if (numVars > 0) {
@@ -1239,8 +1262,10 @@ TraCIServer::processSingleSubscription(const libsumo::Subscription& s, tcpip::St
 
 bool
 TraCIServer::addObjectVariableSubscription(const int commandId, const bool hasContext) {
-    const SUMOTime beginTime = myInputStorage.readInt();
-    const SUMOTime endTime = myInputStorage.readInt();
+    const double beginTime = myInputStorage.readDouble();
+    const double endTime = myInputStorage.readDouble();
+    const SUMOTime begin = beginTime == INVALID_DOUBLE_VALUE ? 0 : TIME2STEPS(beginTime);
+    const SUMOTime end = endTime == INVALID_DOUBLE_VALUE || endTime > STEPS2TIME(SUMOTime_MAX) ? SUMOTime_MAX : TIME2STEPS(endTime);
     const std::string id = myInputStorage.readString();
     const int domain = hasContext ? myInputStorage.readUnsignedByte() : 0;
     const double range = hasContext ? myInputStorage.readDouble() : 0.;
@@ -1261,11 +1286,165 @@ TraCIServer::addObjectVariableSubscription(const int commandId, const bool hasCo
         return true;
     }
     // process subscription
-    libsumo::Subscription s(commandId, id, variables, parameters, beginTime, endTime, domain, range);
+    libsumo::Subscription s(commandId, id, variables, parameters, begin, end, domain, range);
     initialiseSubscription(s);
     return true;
 }
 
+
+
+bool
+TraCIServer::addSubscriptionFilter() {
+    bool success  = true;
+    if (myLastContextSubscription == nullptr) {
+        WRITE_WARNING("addSubscriptionFilter: No previous vehicle context subscription exists to apply the context filter.");
+        return true;
+    }
+    // Read filter type
+    int filterType = myInputStorage.readUnsignedByte();
+
+    // dispatch according to filter type
+    switch (filterType) {
+        case FILTER_TYPE_NONE:
+            // Remove all filters
+            removeFilters();
+            break;
+        case FILTER_TYPE_LANES: {
+            // Read relative lanes to consider for context filter
+            int nrLanes = (int)myInputStorage.readByte();
+            std::vector<int> lanes;
+            for (int i = 0; i < nrLanes; ++i) {
+                lanes.push_back((int) myInputStorage.readByte());
+            }
+            addSubscriptionFilterLanes(lanes);
+        }
+        break;
+        case FILTER_TYPE_NOOPPOSITE:
+            // Add no-opposite filter
+            addSubscriptionFilterNoOpposite();
+            break;
+        case FILTER_TYPE_DOWNSTREAM_DIST: {
+            myInputStorage.readByte(); // read type double
+            double dist = myInputStorage.readDouble();
+            addSubscriptionFilterDownstreamDistance(dist);
+        }
+        break;
+        case FILTER_TYPE_UPSTREAM_DIST: {
+            myInputStorage.readByte(); // read type double
+            double dist = myInputStorage.readDouble();
+            addSubscriptionFilterUpstreamDistance(dist);
+        }
+        break;
+        case FILTER_TYPE_LEAD_FOLLOW: {
+            // Read relative lanes to consider for context filter
+            addSubscriptionFilterLeadFollow();
+        }
+            break;
+        case FILTER_TYPE_TURN:
+            addSubscriptionFilterTurn();
+            break;
+        case FILTER_TYPE_VCLASS: {
+            SVCPermissions vClasses = parseVehicleClasses(myInputStorage.readStringList());
+            addSubscriptionFilterVClass(vClasses);
+        }
+        break;
+        case FILTER_TYPE_VTYPE: {
+            std::vector<std::string> vTypesVector = myInputStorage.readStringList();
+            std::set<std::string> vTypesSet;
+            vTypesSet.insert(vTypesVector.begin(), vTypesVector.end());
+            addSubscriptionFilterVType(vTypesSet);
+        }
+        break;
+        default:
+            writeStatusCmd(filterType, RTYPE_NOTIMPLEMENTED, "'" + toString(filterType) + "' is no valid filter type code.");
+            success  = false;
+    }
+
+    if (success) {
+        // acknowledge filter addition
+        writeStatusCmd(CMD_ADD_SUBSCRIPTION_FILTER, RTYPE_OK, "");
+    }
+
+    return success;
+}
+
+
+void
+TraCIServer::removeFilters() {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Removing filters" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = libsumo::SUBS_FILTER_NONE;
+}
+
+void
+TraCIServer::addSubscriptionFilterLanes(std::vector<int> lanes) {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Adding lane filter (lanes=" << toString(lanes) << ")" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = myLastContextSubscription->activeFilters | libsumo::SUBS_FILTER_LANES;
+    myLastContextSubscription->filterLanes = lanes;
+}
+
+void
+TraCIServer::addSubscriptionFilterNoOpposite() {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Adding no opposite filter" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = myLastContextSubscription->activeFilters | libsumo::SUBS_FILTER_NOOPPOSITE;
+}
+
+void
+TraCIServer::addSubscriptionFilterDownstreamDistance(double dist) {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Adding downstream dist filter (dist=" << toString(dist) << ")" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = myLastContextSubscription->activeFilters | libsumo::SUBS_FILTER_DOWNSTREAM_DIST;
+    myLastContextSubscription->filterDownstreamDist = dist;
+}
+
+void
+TraCIServer::addSubscriptionFilterUpstreamDistance(double dist) {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Adding upstream dist filter (dist=" << toString(dist) << ")" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = myLastContextSubscription->activeFilters | libsumo::SUBS_FILTER_UPSTREAM_DIST;
+    myLastContextSubscription->filterUpstreamDist = dist;
+}
+
+void
+TraCIServer::addSubscriptionFilterLeadFollow() {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Adding Lead/Follow-maneuver filter" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = myLastContextSubscription->activeFilters | libsumo::SUBS_FILTER_LEAD_FOLLOW;
+}
+
+void
+TraCIServer::addSubscriptionFilterTurn() {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Adding turn-maneuver filter" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = myLastContextSubscription->activeFilters | libsumo::SUBS_FILTER_TURN;
+}
+
+void
+TraCIServer::addSubscriptionFilterVClass(SVCPermissions vClasses) {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Adding vClass filter (vClasses=" << toString(vClasses) << ")" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = myLastContextSubscription->activeFilters | libsumo::SUBS_FILTER_VCLASS;
+    myLastContextSubscription->filterVClasses = vClasses;
+}
+
+void
+TraCIServer::addSubscriptionFilterVType(std::set<std::string> vTypes) {
+#ifdef DEBUG_SUBSCRIPTION_FILTERS
+    std::cout << "Adding vType filter (vTypes=" << toString(vTypes) << ")" << std::endl;
+#endif
+    myLastContextSubscription->activeFilters = myLastContextSubscription->activeFilters | libsumo::SUBS_FILTER_VTYPE;
+    myLastContextSubscription->filterVTypes = vTypes;
+}
 
 void
 TraCIServer::writeResponseWithLength(tcpip::Storage& outputStorage, tcpip::Storage& tempMsg) {
@@ -1276,6 +1455,22 @@ TraCIServer::writeResponseWithLength(tcpip::Storage& outputStorage, tcpip::Stora
         outputStorage.writeInt(1 + 4 + (int)tempMsg.size());
     }
     outputStorage.writeStorage(tempMsg);
+}
+
+
+void 
+TraCIServer::writePositionVector(tcpip::Storage& outputStorage, const libsumo::TraCIPositionVector& shape) {
+    outputStorage.writeUnsignedByte(TYPE_POLYGON);
+    if (shape.size() < 256) {
+        outputStorage.writeUnsignedByte((int)shape.size());
+    } else {
+        outputStorage.writeUnsignedByte(0);
+        outputStorage.writeInt((int)shape.size());
+    }
+    for (const libsumo::TraCIPosition& pos : shape) {
+        outputStorage.writeDouble(pos.x);
+        outputStorage.writeDouble(pos.y);
+    }
 }
 
 
@@ -1345,22 +1540,8 @@ TraCIServer::readTypeCheckingPosition2D(tcpip::Storage& inputStorage, libsumo::T
 
 
 bool
-TraCIServer::readTypeCheckingBoundary(tcpip::Storage& inputStorage, Boundary& into) {
-    if (inputStorage.readUnsignedByte() != TYPE_BOUNDINGBOX) {
-        return false;
-    }
-    const double xmin = inputStorage.readDouble();
-    const double ymin = inputStorage.readDouble();
-    const double xmax = inputStorage.readDouble();
-    const double ymax = inputStorage.readDouble();
-    into.set(xmin, ymin, xmax, ymax);
-    return true;
-}
-
-
-bool
 TraCIServer::readTypeCheckingByte(tcpip::Storage& inputStorage, int& into) {
-    if (inputStorage.readUnsignedByte() != TYPE_BYTE) {
+    if (inputStorage.readByte() != TYPE_BYTE) {
         return false;
     }
     into = inputStorage.readByte();
@@ -1384,9 +1565,12 @@ TraCIServer::readTypeCheckingPolygon(tcpip::Storage& inputStorage, PositionVecto
         return false;
     }
     into.clear();
-    int noEntries = inputStorage.readUnsignedByte();
+    int size = inputStorage.readUnsignedByte();
+    if (size == 0) {
+        size = inputStorage.readInt();
+    }
     PositionVector shape;
-    for (int i = 0; i < noEntries; ++i) {
+    for (int i = 0; i < size; ++i) {
         double x = inputStorage.readDouble();
         double y = inputStorage.readDouble();
         into.push_back(Position(x, y));
@@ -1403,7 +1587,7 @@ TraCIServer::setTargetTime(SUMOTime targetTime) {
     }
 }
 
-bool 
+bool
 TraCIServer::centralObject(const libsumo::Subscription& s, const std::string& objID) {
     return (s.id == objID && s.commandId + 32 == s.contextDomain);
 }

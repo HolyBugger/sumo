@@ -21,11 +21,7 @@
 /* =========================================================================
  * included modules
  * ======================================================================= */
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <fxver.h>
 #define NOMINMAX
@@ -55,7 +51,7 @@ MFXMutex::MFXMutex() : lock_(0) {
     (void)status; // only used for assertion
     pthread_mutexattr_destroy(&attr);
 #else
-    mutexHandle = CreateMutex(NULL, FALSE, NULL);
+    mutexHandle = CreateMutex(nullptr, FALSE, nullptr);
     FXASSERT(mutexHandle != NULL);
 #endif
 }

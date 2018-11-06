@@ -1,6 +1,6 @@
 SUBDIRS = src unittest bin
 
-EXTRA_DIST = README.md ChangeLog AUTHORS COPYING sumo.doxyconf
+EXTRA_DIST = README.md ChangeLog AUTHORS CONTRIBUTING.md LICENSE NOTICE.md sumo.doxyconf
 
 doc: pydoc doxygen userdoc javadoc
 
@@ -62,10 +62,10 @@ dist-hook:
 	    find tests/complex/tutorial -regex ".*\.\(xml\|txt\|sumocfg\|netccfg\|py\|osm\)" -print0 | xargs -0 cp -v --parents --target-directory $(abs_distdir) ; \
 	    mv -v ${abs_distdir}/tests/complex/tutorial $(abs_distdir)/docs ; \
 	    rm -rf $(abs_distdir)/tests ; \
-	    tools/extractTest.py -i -f tests/examples.txt -o $(abs_distdir)/docs ; \
-	    find build -regex ".*\.\(vcxproj\|vcxproj\.filters\|props\|sln\|spec\|cmake\)" -print0 | xargs -0 cp --parents --target-directory $(abs_distdir) ; \
-	    find data -regex ".*\.\(xsd\|xml\|csv\|veh\|obj\|mtl\)" -print0 | xargs -0 cp --parents --target-directory $(abs_distdir) ; \
-	    find tools -regex ".*\.\(py\|pl\|xml\|sumocfg\|gif\|html\|png\|js\|css\)" -print0 | xargs -0 cp --parents --target-directory $(abs_distdir) ; \
+	    tools/extractTest.py -i -f tests/examples.txt -o $(abs_distdir) ; \
+	    find build -regex ".*\.\(sh\|csh\|desktop\|png\|spec\|cmake\)" -print0 | xargs -0 cp --parents --target-directory $(abs_distdir) ; \
+	    find data -regex ".*\.\(xsd\|xml\|csv\|veh\|obj\|mtl\|ttf\)" -print0 | xargs -0 cp --parents --target-directory $(abs_distdir) ; \
+	    find tools -regex ".*\.\(py\|java\|xml\|sumocfg\|gif\|html\|png\|js\|css\)" -print0 | xargs -0 cp --parents --target-directory $(abs_distdir) ; \
 	    find . -name CMakeLists.txt -print0 | xargs -0 cp --parents --target-directory $(abs_distdir) ; \
 	    cp --parents src/*.cmake $(abs_distdir) ; \
 	fi;
@@ -80,7 +80,7 @@ dist-doc: doc
 	rmdir $(distdir)/tests
 	find docs/doxygen -name "*.png" | xargs rm
 	cp -r docs/pydoc docs/doxygen docs/userdoc docs/javadoc $(distdir)/docs
-	tools/extractTest.py -i -f tests/examples.txt -o $(distdir)/docs
+	tools/extractTest.py -i -f tests/examples.txt -o $(distdir)
 	tar -czf $(PACKAGE)-doc-$(VERSION).tar.gz $(distdir)
 	rm -f $(PACKAGE)-doc-$(VERSION).zip
 	zip -r $(PACKAGE)-doc-$(VERSION).zip $(distdir)

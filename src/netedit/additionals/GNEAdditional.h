@@ -21,14 +21,11 @@
 // included modules
 // ===========================================================================
 
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <vector>
+#include <utils/common/Parameterised.h>
 #include <utils/geom/PositionVector.h>
 #include <utils/gui/globjects/GUIGlObject.h>
 #include <utils/gui/settings/GUIPropertySchemeStorage.h>
@@ -53,7 +50,7 @@ class GUIGLObjectPopupMenu;
  * @class GNEAdditional
  * @brief An Element which don't belongs to GNENet but has influency in the simulation
  */
-class GNEAdditional : public GUIGlObject, public GNEAttributeCarrier {
+class GNEAdditional : public GUIGlObject, public GNEAttributeCarrier, public Parameterised {
 
 public:
     /**@brief Constructor
@@ -61,55 +58,73 @@ public:
      * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
      * @param[in] type GUIGlObjectType of additional
      * @param[in] tag Type of xml tag that define the additional element (SUMO_TAG_BUS_STOP, SUMO_TAG_REROUTER, etc...)
-     * @param[in] icon GUIIcon associated to the additional
-     * @param[in] movable Flag to indicate if this additional is movable
+     * @param[in] name Additional name
      * @param[in] block movement enable or disable additional movement
      */
-    GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GUIIcon icon, bool movable, bool blockMovement);
+    GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement);
 
-    /**@brief Constructor used by Additionals that have another additional sparent
-    * @param[in] id Gl-id of the additional element (Must be unique)
+    /**@brief Constructor used by Additionals that have another additional as parent
+    * @param[in] singleAdditionalParent pointer to single additional parent
     * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
     * @param[in] type GUIGlObjectType of additional
     * @param[in] tag Type of xml tag that define the additional element (SUMO_TAG_BUS_STOP, SUMO_TAG_REROUTER, etc...)
-    * @param[in] icon GUIIcon associated to the additional
-    * @param[in] movable Flag to indicate if this additional is movable
+    * @param[in] name Additional name
     * @param[in] block movement enable or disable additional movement
-    * @param[in] additionalParent pointer to additional parent
     */
-    GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GUIIcon icon, bool movable, bool blockMovement, GNEAdditional* additionalParent);
+    GNEAdditional(GNEAdditional* singleAdditionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement);
+
+    /**@brief Constructor used by Additionals that have two additionals as parent
+    * @param[in] additionalParent pointer to first additional parent
+    * @param[in] additionalParent pointer to second additional parent
+    * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
+    * @param[in] type GUIGlObjectType of additional
+    * @param[in] tag Type of xml tag that define the additional element (SUMO_TAG_BUS_STOP, SUMO_TAG_REROUTER, etc...)
+    * @param[in] name Additional name
+    * @param[in] block movement enable or disable additional movement
+    */
+    GNEAdditional(GNEAdditional* firstAdditionalParent, GNEAdditional* secondAdditionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement);
 
     /**@brief Constructor used by Additionals that have Edge childs
     * @param[in] id Gl-id of the additional element (Must be unique)
     * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
     * @param[in] type GUIGlObjectType of additional
     * @param[in] tag Type of xml tag that define the additional element (SUMO_TAG_BUS_STOP, SUMO_TAG_REROUTER, etc...)
-    * @param[in] icon GUIIcon associated to the additional
-    * @param[in] movable Flag to indicate if this additional is movable
+    * @param[in] name Additional name
     * @param[in] block movement enable or disable additional movement
     * @param[in] edgeChilds vector of edge childs
     */
-    GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GUIIcon icon, bool movable, bool blockMovement, std::vector<GNEEdge*> edgeChilds);
+    GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement, std::vector<GNEEdge*> edgeChilds);
 
     /**@brief Constructor used by Additionals that have lane childs
     * @param[in] id Gl-id of the additional element (Must be unique)
     * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
     * @param[in] type GUIGlObjectType of additional
     * @param[in] tag Type of xml tag that define the additional element (SUMO_TAG_BUS_STOP, SUMO_TAG_REROUTER, etc...)
-    * @param[in] icon GUIIcon associated to the additional
-    * @param[in] movable Flag to indicate if this additional is movable
+    * @param[in] name Additional name
     * @param[in] block movement enable or disable additional movement
     * @param[in] laneChilds vector of lane childs
     */
-    GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GUIIcon icon, bool movable, bool blockMovement, std::vector<GNELane*> laneChilds);
+    GNEAdditional(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, std::string additionalName, bool blockMovement, std::vector<GNELane*> laneChilds);
 
     /// @brief Destructor
     ~GNEAdditional();
 
+    /// @name members and functions relative to write additionals into XML
+    /// @{
     /**@brief writte additional element into a xml file
      * @param[in] device device in which write parameters of additional element
      */
-    virtual void writeAdditional(OutputDevice& device) const = 0;
+    void writeAdditional(OutputDevice& device) const;
+
+    /// @brief check if current additional is valid to be writed into XML (by default true, can be reimplemented in childs)
+    virtual bool isAdditionalValid() const;
+
+    /// @brief return a string with the current additional problem (by default empty, can be reimplemented in childs) 
+    virtual std::string getAdditionalProblem() const;
+
+    /// @brief fix additional problem (by default throw an exception, has to be reimplemented in childs) 
+    virtual void fixAdditionalProblem();
+    /// @}
 
     /**@brief open Additional Dialog
      * @note: if additional needs an additional dialog, this function has to be implemented in childrens (see GNERerouter and GNEVariableSpeedSign)
@@ -119,20 +134,24 @@ public:
 
     /// @name Functions related with geometry of element
     /// @{
+    /// @brief begin movement (used when user click over additional to start a movement, to avoid problems with problems with GL Tree)
+    void startGeometryMoving();
+
+    /// @brief begin movement (used when user click over additional to start a movement, to avoid problems with problems with GL Tree)
+    void endGeometryMoving();
+
     /**@brief change the position of the element geometry without saving in undoList
-    * @param[in] oldPos position before start movement
-    * @param[in] offset movement offset regardings to oldPos
-    */
-    virtual void moveGeometry(const Position& oldPos, const Position& offset) = 0;
+     * @param[in] offset Position used for calculate new position of geometry without updating RTree
+     */
+    virtual void moveGeometry(const Position& offset) = 0;
 
     /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
-    * @param[in] oldPos the old position of additional
     * @param[in] undoList The undoList on which to register changes
     */
-    virtual void commitGeometryMoving(const Position& oldPos, GNEUndoList* undoList) = 0;
+    virtual void commitGeometryMoving(GNEUndoList* undoList) = 0;
 
     /// @brief update pre-computed geometry information
-    virtual void updateGeometry() = 0;
+    virtual void updateGeometry(bool updateGrid) = 0;
 
     /// @brief Returns position of additional in view
     virtual Position getPositionInView() const = 0;
@@ -147,10 +166,16 @@ public:
     /// @brief Check if additional item is currently blocked (i.e. cannot be moved with mouse)
     bool isAdditionalBlocked() const;
 
-    // @brief get additional parent
-    GNEAdditional* getAdditionalParent() const;
+    // @brief get first additional parent
+    GNEAdditional* getFirstAdditionalParent() const;
 
-    /// @name members and functions relative to additional's childs 
+    // @brief get second additional parent
+    GNEAdditional* getSecondAdditionalParent() const;
+
+    /// @brief gererate a new ID for an additional child
+    std::string generateAdditionalChildID(SumoXMLTag childTag);
+
+    /// @name members and functions relative to additional's childs
     /// @{
 
     /// @brief add additional child to this additional
@@ -161,6 +186,12 @@ public:
 
     /// @brief return vector of additionals that have as Parent this edge (For example, Calibrators)
     const std::vector<GNEAdditional*>& getAdditionalChilds() const;
+
+    /// @brief sort childs (used by Rerouters and VSS)
+    void sortAdditionalChilds();
+
+    /// @brief check if childs are overlapped (Used by Rerouters)
+    bool checkAdditionalChildsOverlapping() const;
 
     /// @brief add edge child
     void addEdgeChild(GNEEdge* edge);
@@ -182,13 +213,8 @@ public:
 
     /// @}
 
-    /// @name members and functions relative to select and unselect additionals
-    /// @{
-
     /// @name inherited from GUIGlObject
     /// @{
-    /// @brief Returns the name (ID) of the parent object
-    virtual const std::string& getParentName() const = 0;
 
     /**@brief Returns an own popup-menu
      *
@@ -209,7 +235,6 @@ public:
     GUIParameterTableWindow* getParameterWindow(GUIMainWindow& app, GUISUMOAbstractView& parent);
 
     /**@brief Returns the boundary to which the view shall be centered in order to show the object
-     *
      * @return The boundary the object is within
      */
     Boundary getCenteringBoundary() const;
@@ -251,6 +276,26 @@ public:
      * @return true if the value is valid, false in other case
      */
     virtual bool isValid(SumoXMLAttr key, const std::string& value) = 0;
+
+    /// @brief get PopPup ID (Used in AC Hierarchy)
+    virtual std::string getPopUpID() const = 0;
+
+    /// @brief get Hierarchy Name (Used in AC Hierarchy)
+    virtual std::string getHierarchyName() const = 0;
+    /// @}
+
+    /// @name Functions related with Generic Paramters
+    /// @{
+
+    /// @brief return generic parameters in string format
+    std::string getGenericParametersStr() const;
+
+    /// @brief return generic parameters as vector of pairs format
+    std::vector<std::pair<std::string, std::string> > getGenericParameters() const;
+
+    /// @brief set generic parameters in string format
+    void setGenericParametersStr(const std::string& value);
+
     /// @}
 
     /** @brief check if a route is valid
@@ -258,29 +303,130 @@ public:
      * @param[in] report enable or disable writting warnings if route isn't valid
      */
     static bool isRouteValid(const std::vector<GNEEdge*>& edges, bool report);
+
 protected:
+    /// @brief struct for pack all variables related with geometry of elemement
+    struct AdditionalGeometry {
+        /// @brief constructor
+        AdditionalGeometry();
+
+        /// @brief reset geometry
+        void clearGeometry();
+
+        /// @brief calculate multi shape unified
+        void calculateMultiShapeUnified();
+
+        /// @brief calculate shape rotations and lenghts
+        void calculateShapeRotationsAndLengths();
+
+        /// @brief calculate multi shape rotations and lenghts
+        void calculateMultiShapeRotationsAndLengths();
+
+        /// @brief The shape of the additional element
+        PositionVector shape;
+
+        /// @brief The multi-shape of the additional element (used by certain additionals)
+        std::vector<PositionVector> multiShape;
+
+        /// @brief The rotations of the single shape parts
+        std::vector<double> shapeRotations;
+
+        /// @brief The lengths of the single shape parts
+        std::vector<double> shapeLengths;
+
+        /// @brief The rotations of the multi-shape parts
+        std::vector<std::vector<double> > multiShapeRotations;
+
+        /// @brief The lengths of the multi-shape shape parts
+        std::vector<std::vector<double> > multiShapeLengths;
+
+        /// @brief multi shape unified
+        PositionVector multiShapeUnified;
+    };
+
+    /// @brief struct for pack all variables related with additional move
+    struct AdditionalMove {
+        /// @brief boundary used during moving of elements (to avoid insertion in RTREE
+        Boundary movingGeometryBoundary;
+
+        /// @brief value for saving first original position over lane before moving
+        Position originalViewPosition;
+
+        /// @brief value for saving first original position over lane before moving
+        std::string firstOriginalLanePosition;
+
+        /// @brief value for saving second original position over lane before moving
+        std::string secondOriginalPosition;
+    };
+
+    /// @brief struct for pack all variables and functions related with Block Icon
+    struct BlockIcon {
+        /// @brief constructor
+        BlockIcon(GNEAdditional *additional);
+
+        /// @brief set Rotation of block Icon (must be called in updateGeometry(bool updateGrid) function)
+        void setRotation(GNELane* additionalLane = nullptr);
+
+        /// @brief draw lock icon
+        void draw(double size = 0.5) const;
+
+    private:
+        /// @brief pointer to additional parent
+        GNEAdditional *myAdditional;
+
+    public:
+        /// @brief position of the block icon
+        Position position;
+
+        /// @brief The offSet of the block icon
+        Position offset;
+
+        /// @brief The rotation of the block icon
+        double rotation;
+    };
+
+    /// @brief struct for pack all variables and functions relative to connections between Additionals and their childs
+    struct ChildConnections {
+        /// @brief constructor
+        ChildConnections(GNEAdditional *additional);
+
+        /// @brief update Connection's geometry
+        void update();
+
+        /// @brief draw connections between Parent and childrens
+        void draw() const;
+
+        /// @brief position and rotation of every symbol over lane
+        std::vector<std::pair<Position, double> > symbolsPositionAndRotation;
+
+        /// @brief Matrix with the Vertex's positions of connections between parents an their childs
+        std::vector<PositionVector> connectionPositions;
+
+    private:
+        /// @brief pointer to additional parent
+        GNEAdditional *myAdditional;
+    };
+
     /// @brief The GNEViewNet this additional element belongs
     GNEViewNet* myViewNet;
 
-    /**@brief The shape of the additional element
-     * @note must be configured in updateGeometry()
-     */
-    PositionVector myShape;
+    /// @brief geometry to be precomputed in updateGeometry(...)
+    AdditionalGeometry myGeometry;
 
-    /// @name computed only once (for performance) in updateGeometry()
-    /// @{
-    /// The rotations of the shape parts
-    std::vector<double> myShapeRotations;
+    /// @brief variable AdditionalMove
+    AdditionalMove myMove;
 
-    /// The lengths of the shape parts
-    std::vector<double> myShapeLengths;
-    /// @}
+    /// @brief name of additional
+    std::string myAdditionalName;
 
     /// @brief boolean to check if additional element is blocked (i.e. cannot be moved with mouse)
     bool myBlockMovement;
 
-    /// @brief pointer to Addititional parent
-    GNEAdditional* myAdditionalParent;
+    /// @brief pointer to first Additional parent
+    GNEAdditional* myFirstAdditionalParent;
+
+    /// @brief pointer to second Additional parent
+    GNEAdditional* mySecondAdditionalParent;
 
     /// @brief vector with the Additional childs
     std::vector<GNEAdditional*> myAdditionalChilds;
@@ -291,23 +437,14 @@ protected:
     /// @brief vector with the lane childs of this additional
     std::vector<GNELane*> myLaneChilds;
 
-    /// @name members and functions relative to block icon
-    /// @{
-    /// @brief set Rotation of block Icon (must be called in updateGeometry() function)
-    void setBlockIconRotation(GNELane* additionalLane = nullptr);
+    /// @brief variable BlockIcon
+    BlockIcon myBlockIcon;
 
-    /// @brief draw lock icon
-    void drawLockIcon(double size = 0.5) const;
+    /// @brief variable ChildConnections
+    ChildConnections myChildConnections;
 
-    /// @brief position of the block icon
-    Position myBlockIconPosition;
-
-    /// @brief The offSet of the block icon
-    Position myBlockIconOffset;
-
-    /// @brief The rotation of the block icon
-    double myBlockIconRotation;
-    /// @}
+    /// @brief change all attributes of additional with their default values (note: this cannot be undo)
+    void setDefaultValues();
 
     /// @name Functions relative to change values in setAttribute(...)
     /// @{
@@ -336,33 +473,33 @@ protected:
     */
     GNELane* changeLane(GNELane* oldLane, const std::string& newLaneID);
 
-    /**@brief change additional parent of additional
+    /**@brief change first additional parent of additional
     * @throw exception if this additional doesn't have previously a defined Additional parent
     * @throw exception if additional with ID newAdditionalParentID doesn't exist
     */
-    void changeAdditionalParent(const std::string& newAdditionalParentID);
+    void changeFirstAdditionalParent(const std::string& newAdditionalParentID);
 
-    /// @}
-
-    /// @name members and functions relative to connections between Additionals and their childs
-    /// @{
-
-    /// @brief update Connection's geometry
-    void updateChildConnections();
-
-    /// @brief draw connections between Parent and childrens
-    void drawChildConnections() const;
-
-    /// @brief position and rotation of every simbol over lane
-    std::vector<std::pair<Position, double> > mySymbolsPositionAndRotation;
+    /**@brief change second additional parent of additional
+    * @throw exception if this additional doesn't have previously a defined Additional parent
+    * @throw exception if additional with ID newAdditionalParentID doesn't exist
+    */
+    void changeSecondAdditionalParent(const std::string& newAdditionalParentID);
     /// @}
 
 private:
-    /// @brief flag to check if this additional is movable
-    bool myMovable;
+    /**@brief check restriction with the number of childs
+     * @throw ProcessError if itis called without be reimplemented in child class
+     */
+    virtual bool checkAdditionalChildRestriction() const;
 
-    /// @brief Matrix with the Vertex's positions of connections between parents an their childs
-    std::vector<std::vector<Position> > myChildConnectionPositions;
+    /// @brief method for setting the attribute and nothing else (used in GNEChange_Attribute)
+    virtual void setAttribute(SumoXMLAttr key, const std::string& value) = 0;
+
+    /// @brief update parent after add or remove a child (can be reimplemented, for example used for stadistics)
+    virtual void updateAdditionalParent();
+
+    /// @brief method for check if mouse is over objects
+    void mouseOverObject(const GUIVisualizationSettings& s) const;
 
     /// @brief Invalidated copy constructor.
     GNEAdditional(const GNEAdditional&) = delete;

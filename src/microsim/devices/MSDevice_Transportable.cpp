@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <microsim/output/MSStopOut.h>
 #include <microsim/MSNet.h>
@@ -45,7 +41,7 @@
 // static initialisation methods
 // ---------------------------------------------------------------------------
 MSDevice_Transportable*
-MSDevice_Transportable::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into, const bool isContainer) {
+MSDevice_Transportable::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into, const bool isContainer) {
     MSDevice_Transportable* device = new MSDevice_Transportable(v, isContainer ? "container_" + v.getID() : "person_" + v.getID(), isContainer);
     into.push_back(device);
     return device;
@@ -56,11 +52,23 @@ MSDevice_Transportable::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice
 // MSDevice_Transportable-methods
 // ---------------------------------------------------------------------------
 MSDevice_Transportable::MSDevice_Transportable(SUMOVehicle& holder, const std::string& id, const bool isContainer)
-    : MSDevice(holder, id), myAmContainer(isContainer), myTransportables(), myStopped(holder.isStopped()) {
+    : MSVehicleDevice(holder, id), myAmContainer(isContainer), myTransportables(), myStopped(holder.isStopped()) {
 }
 
 
 MSDevice_Transportable::~MSDevice_Transportable() {
+}
+
+void
+MSDevice_Transportable::notifyMoveInternal(const SUMOVehicle& veh,
+        const double /* frontOnLane */,
+        const double /* timeOnLane*/,
+        const double /* meanSpeedFrontOnLane */,
+        const double /*meanSpeedVehicleOnLane */,
+        const double /* travelledDistanceFrontOnLane */,
+        const double /* travelledDistanceVehicleOnLane */,
+        const double /* meanLengthOnLane */) {
+    notifyMove(const_cast<SUMOVehicle&>(veh), -1, -1, -1);
 }
 
 
@@ -77,7 +85,7 @@ MSDevice_Transportable::notifyMove(SUMOVehicle& veh, double /*oldPos*/, double /
         if (veh.isStopped()) {
             for (std::vector<MSTransportable*>::iterator i = myTransportables.begin(); i != myTransportables.end();) {
                 MSTransportable* transportable = *i;
-                if (&(transportable->getDestination()) == veh.getEdge()) {
+                if (transportable->getDestination() == veh.getEdge()) {
                     if (!transportable->proceed(MSNet::getInstance(), MSNet::getInstance()->getCurrentTimeStep())) {
                         if (myAmContainer) {
                             MSNet::getInstance()->getContainerControl().erase(transportable);
@@ -121,10 +129,10 @@ MSDevice_Transportable::notifyLeave(SUMOVehicle& veh, double /*lastPos*/,
     if (reason >= MSMoveReminder::NOTIFICATION_ARRIVED) {
         for (std::vector<MSTransportable*>::iterator i = myTransportables.begin(); i != myTransportables.end(); ++i) {
             MSTransportable* transportable = *i;
-            if (&(transportable->getDestination()) != veh.getEdge()) {
+            if (transportable->getDestination() != veh.getEdge()) {
                 WRITE_WARNING((myAmContainer ? "Teleporting container '" : "Teleporting person '") + transportable->getID() +
                               "' from vehicle destination edge '" + veh.getEdge()->getID() +
-                              "' to intended destination edge '" + transportable->getDestination().getID() + "'");
+                              "' to intended destination edge '" + transportable->getDestination()->getID() + "'");
             }
             if (!transportable->proceed(MSNet::getInstance(), MSNet::getInstance()->getCurrentTimeStep())) {
                 if (myAmContainer) {

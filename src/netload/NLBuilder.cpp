@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <iostream>
 #include <vector>
@@ -77,7 +73,7 @@ void
 NLBuilder::EdgeFloatTimeLineRetriever_EdgeEffort::addEdgeWeight(const std::string& id,
         double value, double begTime, double endTime) const {
     MSEdge* edge = MSEdge::dictionary(id);
-    if (edge != 0) {
+    if (edge != nullptr) {
         myNet.getWeightsStorage().addEffort(edge, begTime, endTime, value);
     } else {
         WRITE_ERROR("Trying to set the effort for the unknown edge '" + id + "'.");
@@ -92,7 +88,7 @@ void
 NLBuilder::EdgeFloatTimeLineRetriever_EdgeTravelTime::addEdgeWeight(const std::string& id,
         double value, double begTime, double endTime) const {
     MSEdge* edge = MSEdge::dictionary(id);
-    if (edge != 0) {
+    if (edge != nullptr) {
         myNet.getWeightsStorage().addTravelTime(edge, begTime, endTime, value);
     } else {
         WRITE_ERROR("Trying to set the travel time for the unknown edge '" + id + "'.");
@@ -122,6 +118,9 @@ NLBuilder::build() {
     // try to build the net
     if (!load("net-file", true)) {
         return false;
+    }
+    if (myXMLHandler.networkVersion() == 0.) {
+        throw ProcessError("Invalid network, no network version declared.");
     }
     // check whether the loaded net agrees with the simulation options
     if (myOptions.getBool("no-internal-links") && myXMLHandler.haveSeenInternalEdge()) {
@@ -190,7 +189,7 @@ NLBuilder::build() {
         XMLSubSys::runParser(h, f);
         if (myOptions.isDefault("begin")) {
             myOptions.set("begin", time2string(h.getTime()));
-            if (TraCIServer::getInstance() != 0) {
+            if (TraCIServer::getInstance() != nullptr) {
                 TraCIServer::getInstance()->setTargetTime(h.getTime());
             }
         }
@@ -236,7 +235,7 @@ NLBuilder::init() {
     RandHelper::initRandGlobal(MSRouteHandler::getParsingRNG());
     RandHelper::initRandGlobal(MSDevice::getEquipmentRNG());
     MSFrame::setMSGlobals(oc);
-    MSVehicleControl* vc = 0;
+    MSVehicleControl* vc = nullptr;
     if (MSGlobals::gUseMesoSim) {
         vc = new MEVehicleControl();
     } else {
@@ -268,10 +267,10 @@ NLBuilder::init() {
 
 void
 NLBuilder::buildNet() {
-    MSEdgeControl* edges = 0;
-    MSJunctionControl* junctions = 0;
-    SUMORouteLoaderControl* routeLoaders = 0;
-    MSTLLogicControl* tlc = 0;
+    MSEdgeControl* edges = nullptr;
+    MSJunctionControl* junctions = nullptr;
+    SUMORouteLoaderControl* routeLoaders = nullptr;
+    MSTLLogicControl* tlc = nullptr;
     std::vector<SUMOTime> stateDumpTimes;
     std::vector<std::string> stateDumpFiles;
     try {

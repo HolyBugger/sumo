@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <microsim/MSEdge.h>
@@ -55,7 +51,7 @@ MSRouteProbe::MSRouteProbe(const std::string& id, const MSEdge* edge, const std:
     myLastRouteDistribution = std::make_pair(lastID, MSRoute::distDictionary(lastID));
     if (MSGlobals::gUseMesoSim) {
         MESegment* seg = MSGlobals::gMesoNet->getSegmentForEdge(*edge);
-        while (seg != 0) {
+        while (seg != nullptr) {
             seg->addDetector(this);
             seg = seg->getNextSegment();
         }
@@ -73,6 +69,9 @@ MSRouteProbe::~MSRouteProbe() {
 
 bool
 MSRouteProbe::notifyEnter(SUMOVehicle& veh, MSMoveReminder::Notification reason, const MSLane* /* enteredLane */) {
+    if (!vehicleApplies(veh)) {
+        return false;
+    }
     if (reason != MSMoveReminder::NOTIFICATION_SEGMENT && reason != MSMoveReminder::NOTIFICATION_LANE_CHANGE) {
         if (myCurrentRouteDistribution.second->add(&veh.getRoute(), 1.)) {
             veh.getRoute().addReference();
@@ -125,7 +124,7 @@ MSRouteProbe::getRoute() const {
         if (myCurrentRouteDistribution.second->getOverallProb() > 0) {
             return myCurrentRouteDistribution.second->get();
         }
-        return 0;
+        return nullptr;
     }
     return myLastRouteDistribution.second->get();
 }

@@ -24,13 +24,9 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 #include <utils/common/SUMOTime.h>
 #include <utils/common/WrappingCommand.h>
 
@@ -42,7 +38,7 @@ class SUMOVehicle;
 class MSVehicle;
 class Command_ToCTrigger;
 class Command_ToCProcess;
-
+class RGBColor;
 
 // ===========================================================================
 // class definitions
@@ -54,7 +50,13 @@ class Command_ToCProcess;
  *
  * @see MSDevice
  */
-class MSDevice_ToC : public MSDevice {
+class MSDevice_ToC : public MSVehicleDevice {
+private:
+    // All currently existing ToC device instances
+    static std::set<MSDevice_ToC*> instances;
+    // All files, that receive ToC output (TODO: check if required)
+    static std::set<std::string> createdOutputFiles;
+
 public:
     /** @brief Inserts MSDevice_ToC-options
      * @param[filled] oc The options container to add the options to
@@ -72,7 +74,17 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[filled] into The vector to store the built device in
      */
-    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into);
+    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
+
+    /** @brief returns all currently existing ToC devices
+     */
+    static const std::set<MSDevice_ToC*>& getInstances() {
+        return instances;
+    };
+
+    /** @brief Closes root tags of output files
+     */
+    static void cleanup();
 
 private:
 
@@ -92,7 +104,6 @@ private:
         RECOVERING = 5
     };
 
-
     /// @name Helpers for parameter parsing
     /// @{
     static std::string getManualType(const SUMOVehicle& v, const OptionsCont& oc);
@@ -101,9 +112,8 @@ private:
     static double getRecoveryRate(const SUMOVehicle& v, const OptionsCont& oc);
     static double getInitialAwareness(const SUMOVehicle& v, const OptionsCont& oc);
     static double getMRMDecel(const SUMOVehicle& v, const OptionsCont& oc);
-
-    static double getFloatParam(const SUMOVehicle& v, const OptionsCont& oc, std::string paramName, double deflt, bool required);
-    static std::string getStringParam(const SUMOVehicle& v, const OptionsCont& oc, std::string paramName, std::string deflt, bool required);
+    static bool useColorScheme(const SUMOVehicle& v, const OptionsCont& oc);
+    static std::string getOutputFilename(const SUMOVehicle& v, const OptionsCont& oc);
 
     static ToCState _2ToCState(const std::string&);
     static std::string _2string(ToCState state);
@@ -147,22 +157,47 @@ public:
     /// @brief Continue the awareness recovery for one time step
     SUMOTime awarenessRecoveryStep(SUMOTime t);
 
+    /// @brief Write output to file given by option device.toc.file
+    void writeOutput();
+
+    /// @brief Whether this device requested to write output
+    bool generatesOutput() {
+        return myOutputFile != nullptr;
+    }
+
 private:
     /** @brief Constructor
      *
      * @param[in] holder The vehicle that holds this device
      * @param[in] id The ID of the device
+     * @param[in] file The file to write the device's output to
+     * @param[in] manualType vType that models manual driving
+     * @param[in] automatedType vType that models automated driving
+     * @param[in] responseTime time lapse until vType switch after request was received
+     * @param[in] recoveryRate rate at which the awareness increases after the takeover
+     * @param[in] initialAwareness value to which the awareness is set after takeover
+     * @param[in] mrmDecel constant deceleration rate assumed to be applied during an MRM
+     * @param[in] useColorScheme whether the color of the vehicle should be changed according to its current ToC-state
      */
-    MSDevice_ToC(SUMOVehicle& holder, const std::string& id,
-            std::string manualType, std::string automatedType,
-            SUMOTime responseTime, double recoveryRate, double initialAwareness, double mrmDecel);
+    MSDevice_ToC(SUMOVehicle& holder, const std::string& id, const std::string& outputFilename,
+                 std::string manualType, std::string automatedType,
+                 SUMOTime responseTime, double recoveryRate, double initialAwareness,
+                 double mrmDecel, bool useColorScheme);
 
+    /** @brief Initialize vehicle colors for different states
+     *  @note  For MANUAL and AUTOMATED, the color of the given types are used,
+     *         and for the other states hardcoded colors are given.
+     */
+    void initColorScheme();
 
     /// @brief Set the awareness to the given value
     void setAwareness(double value);
 
     /// @brief Set the ToC device's state
     void setState(ToCState state);
+
+    // @brief Sets the device holder's color corresponding to the current state
+    void setVehicleColor();
 
     /// @brief Request a ToC.
     ///        If the device is in AUTOMATED or MRM state, a driver response time is sampled
@@ -194,10 +229,10 @@ private:
     /// @name private state members of the ToC device
     /// @{
 
-    /// @brief vehicle type for manual driving
-    std::string myManualType;
-    /// @brief vehicle type for automated driving
-    std::string myAutomatedType;
+    /// @brief vehicle type ID for manual driving
+    std::string myManualTypeID;
+    /// @brief vehicle type ID for automated driving
+    std::string myAutomatedTypeID;
 
     // @brief Average response time needed by the driver to take back control
     SUMOTime myResponseTime;
@@ -211,6 +246,12 @@ private:
 
     // @brief Current awareness-level of the driver in [0,1]
     double myCurrentAwareness;
+
+    /// @brief Coloring scheme, @see initColorScheme()
+    std::map<ToCState, RGBColor> myColorScheme;
+
+    /// @brief Whether a coloring scheme shall by applied to indicate the different toc stages, @see initColorScheme()
+    bool myUseColorScheme;
 
     /// @brief Current state of the device
     ToCState myState;
@@ -230,6 +271,11 @@ private:
     WrappingCommand<MSDevice_ToC>* myPrepareToCCommand;
     /// @}
 
+    /// @brief The file the devices output goes to
+    OutputDevice* myOutputFile;
+
+    /// @brief Storage for events to be written to the output
+    std::queue<std::pair<SUMOTime, std::string> > myEvents;
 
 private:
     /// @brief Invalidated copy constructor.

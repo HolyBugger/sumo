@@ -20,11 +20,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <cassert>
 #include <utils/vehicle/SUMOVehicle.h>
@@ -70,7 +66,7 @@ MSParkingArea::MSParkingArea(const std::string& id,
         for (int i = 1; i <= myCapacity; ++i) {
             mySpaceOccupancies[i] = LotSpaceDefinition();
             mySpaceOccupancies[i].index = i;
-            mySpaceOccupancies[i].vehicle = 0;
+            mySpaceOccupancies[i].vehicle = nullptr;
             mySpaceOccupancies[i].myWidth = myWidth;
             mySpaceOccupancies[i].myLength = myLength;
             mySpaceOccupancies[i].myEndPos = myBegPos + getSpaceDim() * i;
@@ -124,7 +120,7 @@ MSParkingArea::getVehicleAngle(const SUMOVehicle& forVehicle) {
 
 double
 MSParkingArea::getSpaceDim() const {
-    return myLane.interpolateLanePosToGeometryPos((myEndPos - myBegPos) / myCapacity);
+    return myCapacity > 0 ? myLane.interpolateLanePosToGeometryPos((myEndPos - myBegPos) / myCapacity) : 7.5;
 }
 
 
@@ -136,7 +132,7 @@ MSParkingArea::addLotEntry(double x, double y, double z,
 
     mySpaceOccupancies[i] = LotSpaceDefinition();
     mySpaceOccupancies[i].index = i;
-    mySpaceOccupancies[i].vehicle = 0;
+    mySpaceOccupancies[i].vehicle = nullptr;
     mySpaceOccupancies[i].myPosition = Position(x, y, z);
     mySpaceOccupancies[i].myWidth = width;
     mySpaceOccupancies[i].myLength = length;
@@ -163,7 +159,7 @@ MSParkingArea::leaveFrom(SUMOVehicle* what) {
     std::map<unsigned int, LotSpaceDefinition >::iterator i;
     for (i = mySpaceOccupancies.begin(); i != mySpaceOccupancies.end(); i++) {
         if ((*i).second.vehicle == what) {
-            (*i).second.vehicle = 0;
+            (*i).second.vehicle = nullptr;
             break;
         }
     }
@@ -178,7 +174,7 @@ MSParkingArea::computeLastFreePos() {
     myLastFreePos = myBegPos;
     std::map<unsigned int, LotSpaceDefinition >::iterator i;
     for (i = mySpaceOccupancies.begin(); i != mySpaceOccupancies.end(); i++) {
-        if ((*i).second.vehicle == 0) {
+        if ((*i).second.vehicle == nullptr) {
             myLastFreeLot = (*i).first;
             myLastFreePos = (*i).second.myEndPos;
             break;

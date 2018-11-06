@@ -24,11 +24,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <iostream>
@@ -70,12 +66,14 @@
 NLDetectorBuilder::E3DetectorDefinition::E3DetectorDefinition(const std::string& id,
         const std::string& device, double haltingSpeedThreshold,
         SUMOTime haltingTimeThreshold, SUMOTime splInterval,
-        const std::string& vTypes)
-    : myID(id), myDevice(device),
-      myHaltingSpeedThreshold(haltingSpeedThreshold),
-      myHaltingTimeThreshold(haltingTimeThreshold),
-      mySampleInterval(splInterval),
-      myVehicleTypes(vTypes) {}
+        const std::string& vTypes, bool openEntry) :
+    myID(id), myDevice(device),
+    myHaltingSpeedThreshold(haltingSpeedThreshold),
+    myHaltingTimeThreshold(haltingTimeThreshold),
+    mySampleInterval(splInterval),
+    myVehicleTypes(vTypes),
+    myOpenEntry(openEntry) {
+}
 
 
 NLDetectorBuilder::E3DetectorDefinition::~E3DetectorDefinition() {}
@@ -85,7 +83,7 @@ NLDetectorBuilder::E3DetectorDefinition::~E3DetectorDefinition() {}
  * NLDetectorBuilder-methods
  * ----------------------------------------------------------------------- */
 NLDetectorBuilder::NLDetectorBuilder(MSNet& net)
-    : myNet(net), myE3Definition(0) {}
+    : myNet(net), myE3Definition(nullptr) {}
 
 
 NLDetectorBuilder::~NLDetectorBuilder() {
@@ -133,8 +131,8 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, MSLane* lane, double p
                                    const std::string& vTypes, bool friendlyPos, bool showDetector,
                                    MSTLLogicControl::TLSLogicVariants* tlls, MSLane* toLane) {
 
-    bool tlsGiven = tlls != 0;
-    bool toLaneGiven = toLane != 0;
+    bool tlsGiven = tlls != nullptr;
+    bool toLaneGiven = toLane != nullptr;
     bool posGiven = pos != std::numeric_limits<double>::max();
     bool endPosGiven = endPos != std::numeric_limits<double>::max();
 
@@ -177,7 +175,7 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, MSLane* lane, double p
         }
     }
 
-    MSE2Collector* det = 0;
+    MSE2Collector* det = nullptr;
     if (tlsGiven) {
         // Detector connected to TLS
         det =  createE2Detector(id, DU_USER_DEFINED, lane, pos, endPos, length, haltingTimeThreshold, haltingSpeedThreshold, jamDistThreshold, vTypes, showDetector);
@@ -187,7 +185,7 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, MSLane* lane, double p
             // Detector also associated to specific link
             MSLane* lastLane = det->getLastLane();
             MSLink* link = MSLinkContHelper::getConnectingLink(*lastLane, *toLane);
-            if (link == 0) {
+            if (link == nullptr) {
                 throw InvalidArgument(
                     "The detector '" + id + "' cannot be build as no connection between lanes '"
                     + lastLane->getID() + "' and '" + toLane->getID() + "' exists.");
@@ -213,8 +211,8 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, std::vector<MSLane*> l
                                    const std::string& vTypes, bool friendlyPos, bool showDetector,
                                    MSTLLogicControl::TLSLogicVariants* tlls, MSLane* toLane) {
 
-    bool tlsGiven = tlls != 0;
-    bool toLaneGiven = toLane != 0;
+    bool tlsGiven = tlls != nullptr;
+    bool toLaneGiven = toLane != nullptr;
     assert(pos != std::numeric_limits<double>::max());
     assert(endPos != std::numeric_limits<double>::max());
     assert(lanes.size() != 0);
@@ -254,7 +252,7 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, std::vector<MSLane*> l
         }
     }
 
-    MSE2Collector* det = 0;
+    MSE2Collector* det = nullptr;
     if (tlsGiven) {
         // Detector connected to TLS
         det = createE2Detector(id, DU_USER_DEFINED, lanes, pos, endPos, haltingTimeThreshold, haltingSpeedThreshold, jamDistThreshold, vTypes, showDetector);
@@ -264,7 +262,7 @@ NLDetectorBuilder::buildE2Detector(const std::string& id, std::vector<MSLane*> l
             // Detector also associated to specific link
             MSLane* lastLane = det->getLastLane();
             MSLink* link = MSLinkContHelper::getConnectingLink(*lastLane, *toLane);
-            if (link == 0) {
+            if (link == nullptr) {
                 throw InvalidArgument(
                     "The detector '" + id + "' cannot be build as no connection between lanes '"
                     + lastLane->getID() + "' and '" + toLane->getID() + "' exists.");
@@ -291,16 +289,16 @@ NLDetectorBuilder::beginE3Detector(const std::string& id,
                                    const std::string& device, SUMOTime splInterval,
                                    double haltingSpeedThreshold,
                                    SUMOTime haltingTimeThreshold,
-                                   const std::string& vTypes) {
+                                   const std::string& vTypes, bool openEntry) {
     checkSampleInterval(splInterval, SUMO_TAG_E3DETECTOR, id);
-    myE3Definition = new E3DetectorDefinition(id, device, haltingSpeedThreshold, haltingTimeThreshold, splInterval, vTypes);
+    myE3Definition = new E3DetectorDefinition(id, device, haltingSpeedThreshold, haltingTimeThreshold, splInterval, vTypes, openEntry);
 }
 
 
 void
 NLDetectorBuilder::addE3Entry(const std::string& lane,
                               double pos, bool friendlyPos) {
-    if (myE3Definition == 0) {
+    if (myE3Definition == nullptr) {
         return;
     }
     MSLane* clane = getLaneChecking(lane, SUMO_TAG_E3DETECTOR, myE3Definition->myID);
@@ -314,7 +312,7 @@ NLDetectorBuilder::addE3Entry(const std::string& lane,
 void
 NLDetectorBuilder::addE3Exit(const std::string& lane,
                              double pos, bool friendlyPos) {
-    if (myE3Definition == 0) {
+    if (myE3Definition == nullptr) {
         return;
     }
     MSLane* clane = getLaneChecking(lane, SUMO_TAG_E3DETECTOR, myE3Definition->myID);
@@ -327,7 +325,7 @@ NLDetectorBuilder::addE3Exit(const std::string& lane,
 
 std::string
 NLDetectorBuilder::getCurrentE3ID() const {
-    if (myE3Definition == 0) {
+    if (myE3Definition == nullptr) {
         return "<unknown>";
     }
     return myE3Definition->myID;
@@ -336,7 +334,7 @@ NLDetectorBuilder::getCurrentE3ID() const {
 
 void
 NLDetectorBuilder::endE3Detector() {
-    if (myE3Definition == 0) {
+    if (myE3Definition == nullptr) {
         return;
     }
     // If E3 own entry or exit detectors
@@ -344,7 +342,8 @@ NLDetectorBuilder::endE3Detector() {
         // create E3 detector
         MSDetectorFileOutput* det = createE3Detector(myE3Definition->myID,
                                     myE3Definition->myEntries, myE3Definition->myExits,
-                                    myE3Definition->myHaltingSpeedThreshold, myE3Definition->myHaltingTimeThreshold, myE3Definition->myVehicleTypes);
+                                    myE3Definition->myHaltingSpeedThreshold, myE3Definition->myHaltingTimeThreshold, myE3Definition->myVehicleTypes,
+                                    myE3Definition->myOpenEntry);
         // add to net
         myNet.getDetectorControl().add(SUMO_TAG_ENTRY_EXIT_DETECTOR, det, myE3Definition->myDevice, myE3Definition->mySampleInterval);
     } else
@@ -352,7 +351,7 @@ NLDetectorBuilder::endE3Detector() {
 
         // clean up
         delete myE3Definition;
-    myE3Definition = 0;
+    myE3Definition = nullptr;
 }
 
 
@@ -418,8 +417,9 @@ NLDetectorBuilder::createE3Detector(const std::string& id,
                                     const CrossSectionVector& exits,
                                     double haltingSpeedThreshold,
                                     SUMOTime haltingTimeThreshold,
-                                    const std::string& vTypes) {
-    return new MSE3Collector(id, entries, exits, haltingSpeedThreshold, haltingTimeThreshold, vTypes);
+                                    const std::string& vTypes,
+                                    bool openEntry) {
+    return new MSE3Collector(id, entries, exits, haltingSpeedThreshold, haltingTimeThreshold, vTypes, openEntry);
 }
 
 
@@ -466,7 +466,7 @@ NLDetectorBuilder::createEdgeLaneMeanData(const std::string& id, SUMOTime freque
     if (end <= begin) {
         throw InvalidArgument("End before or at begin for meandata dump '" + id + "'.");
     }
-    MSMeanData* det = 0;
+    MSMeanData* det = nullptr;
     if (type == "" || type == "performance" || type == "traffic") {
         det = new MSMeanData_Net(id, begin, end, useLanes, withEmpty,
                                  printDefaults, withInternal, trackVehicles, maxTravelTime, minSamples, haltSpeed, vTypes);
@@ -485,7 +485,7 @@ NLDetectorBuilder::createEdgeLaneMeanData(const std::string& id, SUMOTime freque
     } else {
         throw InvalidArgument("Invalid type '" + type + "' for meandata dump '" + id + "'.");
     }
-    if (det != 0) {
+    if (det != nullptr) {
         if (frequency < 0) {
             frequency = end - begin;
         }
@@ -502,7 +502,7 @@ NLDetectorBuilder::getEdgeChecking(const std::string& edgeID, SumoXMLTag type,
                                    const std::string& detid) {
     // get and check the lane
     MSEdge* edge = MSEdge::dictionary(edgeID);
-    if (edge == 0) {
+    if (edge == nullptr) {
         throw InvalidArgument("The lane with the id '" + edgeID + "' is not known (while building " + toString(type) + " '" + detid + "').");
     }
     return edge;
@@ -514,7 +514,7 @@ NLDetectorBuilder::getLaneChecking(const std::string& laneID, SumoXMLTag type,
                                    const std::string& detid) {
     // get and check the lane
     MSLane* lane = MSLane::dictionary(laneID);
-    if (lane == 0) {
+    if (lane == nullptr) {
         throw InvalidArgument("The lane with the id '" + laneID + "' is not known (while building " + toString(type) + " '" + detid + "').");
     }
     return lane;

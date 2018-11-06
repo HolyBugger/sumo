@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <algorithm>
@@ -53,13 +49,13 @@
 // ===========================================================================
 // static member definitions
 // ===========================================================================
-GUIMainWindow* GUIMainWindow::myInstance = 0;
+GUIMainWindow* GUIMainWindow::myInstance = nullptr;
 
 // ===========================================================================
 // member method definitions
 // ===========================================================================
 GUIMainWindow::GUIMainWindow(FXApp* a) :
-    FXMainWindow(a, "SUMO-gui main window", NULL, NULL, DECOR_ALL, 20, 20, 600, 400),
+    FXMainWindow(a, "SUMO-gui main window", nullptr, nullptr, DECOR_ALL, 20, 20, 600, 400),
     myAmFullScreen(false),
     myGLVisual(new FXGLVisual(a, VISUAL_DOUBLEBUFFER)),
     myAmGaming(false),
@@ -76,7 +72,7 @@ GUIMainWindow::GUIMainWindow(FXApp* a) :
     myBottomDock = new FXDockSite(this, LAYOUT_SIDE_BOTTOM | LAYOUT_FILL_X);
     myLeftDock = new FXDockSite(this, LAYOUT_SIDE_LEFT | LAYOUT_FILL_Y);
     myRightDock = new FXDockSite(this, LAYOUT_SIDE_RIGHT | LAYOUT_FILL_Y);
-    if (myInstance != 0) {
+    if (myInstance != nullptr) {
         throw ProcessError("MainWindow initialized twice");
     }
     myInstance = this;
@@ -143,7 +139,7 @@ GUIMainWindow::getViewByID(const std::string& id) const {
             return *i;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 
@@ -156,11 +152,11 @@ GUIMainWindow::getBoldFont() {
 void
 GUIMainWindow::updateChildren() {
     // inform views
-    myMDIClient->forallWindows(this, FXSEL(SEL_COMMAND, MID_SIMSTEP), 0);
+    myMDIClient->forallWindows(this, FXSEL(SEL_COMMAND, MID_SIMSTEP), nullptr);
     // inform other windows
     myTrackerLock.lock();
     for (int i = 0; i < (int)myTrackerWindows.size(); i++) {
-        myTrackerWindows[i]->handle(this, FXSEL(SEL_COMMAND, MID_SIMSTEP), 0);
+        myTrackerWindows[i]->handle(this, FXSEL(SEL_COMMAND, MID_SIMSTEP), nullptr);
     }
     myTrackerLock.unlock();
 }
@@ -186,7 +182,7 @@ GUIMainWindow::getGeoLabel() {
 
 GUIMainWindow*
 GUIMainWindow::getInstance() {
-    if (myInstance != 0) {
+    if (myInstance != nullptr) {
         return myInstance;
     }
     throw ProcessError("A GUIMainWindow instance was not yet constructed.");
@@ -196,10 +192,10 @@ GUIMainWindow::getInstance() {
 GUISUMOAbstractView*
 GUIMainWindow::getActiveView() const {
     GUIGlChildWindow* w = dynamic_cast<GUIGlChildWindow*>(myMDIClient->getActiveChild());
-    if (w != 0) {
+    if (w != nullptr) {
         return w->getView();
     }
-    return 0;
+    return nullptr;
 }
 
 void
@@ -221,7 +217,7 @@ GUIMainWindow::setWindowSizeAndPos() {
     if (oc.isSet("window-size") || getApp()->reg().readIntEntry("SETTINGS", "maximized", 0) == 0 || oc.isSet("window-pos")) {
         // when restoring previous pos, make sure the window fits fully onto the current screen
         int x = MAX2(0, MIN2(getApp()->reg().readIntEntry("SETTINGS", "x", 150), getApp()->getRootWindow()->getWidth() - windowWidth));
-        int y = MAX2(0, MIN2(getApp()->reg().readIntEntry("SETTINGS", "y", 150), getApp()->getRootWindow()->getHeight() - windowHeight));
+        int y = MAX2(50, MIN2(getApp()->reg().readIntEntry("SETTINGS", "y", 150), getApp()->getRootWindow()->getHeight() - windowHeight));
         if (oc.isSet("window-pos")) {
             std::vector<std::string> windowPos = oc.getStringVector("window-pos");
             if (windowPos.size() != 2
@@ -239,7 +235,7 @@ GUIMainWindow::setWindowSizeAndPos() {
     }
 }
 
-void 
+void
 GUIMainWindow::storeWindowSizeAndPos() {
     if (!myAmFullScreen) {
         getApp()->reg().writeIntEntry("SETTINGS", "x", getX());

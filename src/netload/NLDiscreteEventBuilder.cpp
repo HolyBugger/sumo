@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/xml/SUMOXMLDefinitions.h>
 #include <microsim/MSNet.h>
@@ -60,7 +56,7 @@ void
 NLDiscreteEventBuilder::addAction(const SUMOSAXAttributes& attrs,
                                   const std::string& basePath) {
     bool ok = true;
-    const std::string type = attrs.getOpt<std::string>(SUMO_ATTR_TYPE, 0, ok, "");
+    const std::string type = attrs.getOpt<std::string>(SUMO_ATTR_TYPE, nullptr, ok, "");
     // check whether the type was given
     if (type == "" || !ok) {
         throw InvalidArgument("An action's type is not given.");
@@ -89,8 +85,8 @@ void
 NLDiscreteEventBuilder::buildSaveTLStateCommand(const SUMOSAXAttributes& attrs,
         const std::string& basePath) {
     bool ok = true;
-    const std::string dest = attrs.getOpt<std::string>(SUMO_ATTR_DEST, 0, ok, "");
-    const std::string source = attrs.getOpt<std::string>(SUMO_ATTR_SOURCE, 0, ok, "");
+    const std::string dest = attrs.getOpt<std::string>(SUMO_ATTR_DEST, nullptr, ok, "");
+    const std::string source = attrs.getOpt<std::string>(SUMO_ATTR_SOURCE, nullptr, ok, "");
     // check the parameter
     if (dest == "" || !ok) {
         throw InvalidArgument("Incomplete description of an 'SaveTLSState'-action occurred.");
@@ -117,8 +113,8 @@ void
 NLDiscreteEventBuilder::buildSaveTLSwitchesCommand(const SUMOSAXAttributes& attrs,
         const std::string& basePath) {
     bool ok = true;
-    const std::string dest = attrs.getOpt<std::string>(SUMO_ATTR_DEST, 0, ok, "");
-    const std::string source = attrs.getOpt<std::string>(SUMO_ATTR_SOURCE, 0, ok, "");
+    const std::string dest = attrs.getOpt<std::string>(SUMO_ATTR_DEST, nullptr, ok, "");
+    const std::string source = attrs.getOpt<std::string>(SUMO_ATTR_SOURCE, nullptr, ok, "");
     // check the parameter
     if (dest == "" || !ok) {
         throw InvalidArgument("Incomplete description of an 'SaveTLSSwitchTimes'-action occurred.");
@@ -145,8 +141,8 @@ void
 NLDiscreteEventBuilder::buildSaveTLSwitchStatesCommand(const SUMOSAXAttributes& attrs,
         const std::string& basePath) {
     bool ok = true;
-    const std::string dest = attrs.getOpt<std::string>(SUMO_ATTR_DEST, 0, ok, "");
-    const std::string source = attrs.getOpt<std::string>(SUMO_ATTR_SOURCE, 0, ok, "");
+    const std::string dest = attrs.getOpt<std::string>(SUMO_ATTR_DEST, nullptr, ok, "");
+    const std::string source = attrs.getOpt<std::string>(SUMO_ATTR_SOURCE, nullptr, ok, "");
     // check the parameter
     if (dest == "" || !ok) {
         throw InvalidArgument("Incomplete description of an 'SaveTLSSwitchStates'-action occurred.");

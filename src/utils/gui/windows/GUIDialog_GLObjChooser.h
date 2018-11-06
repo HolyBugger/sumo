@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <vector>
@@ -113,10 +109,13 @@ public:
 protected:
 
     /// @brief toggle selection (handled differently in NETEDIT)
-    virtual void toggleSelection(int listIndex); 
+    virtual void toggleSelection(int listIndex);
 
     /// update the list with the given ids
-    void refreshList(const std::vector<GUIGlID>& ids); 
+    void refreshList(const std::vector<GUIGlID>& ids);
+
+    /// @bbrief retrieve name for the given object
+    virtual std::string getObjectName(GUIGlObject* o) const;
 
 private:
     /// @brief The list that holds the ids

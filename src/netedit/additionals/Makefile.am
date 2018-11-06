@@ -14,6 +14,7 @@ GNEParkingArea.cpp GNEParkingArea.h \
 GNEParkingSpace.cpp GNEParkingSpace.h \
 GNEDetector.cpp GNEDetector.h \
 GNEDetectorE1.cpp GNEDetectorE1.h \
+GNEDetectorE1Instant.cpp GNEDetectorE1Instant.h \
 GNEDetectorE2.cpp GNEDetectorE2.h \
 GNEDetectorE3.cpp GNEDetectorE3.h \
 GNEDetectorEntry.cpp GNEDetectorEntry.h \
@@ -21,6 +22,9 @@ GNEDetectorExit.cpp GNEDetectorExit.h \
 GNERerouter.cpp GNERerouter.h \
 GNERouteProbe.cpp GNERouteProbe.h \
 GNEVaporizer.cpp GNEVaporizer.h \
+GNETAZ.cpp GNETAZ.h \
+GNETAZSource.cpp GNETAZSource.h \
+GNETAZSink.cpp GNETAZSink.h \
 GNECalibrator.cpp GNECalibrator.h \
 GNECalibratorFlow.cpp GNECalibratorFlow.h \
 GNECalibratorVehicleType.cpp GNECalibratorVehicleType.h \

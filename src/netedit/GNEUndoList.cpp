@@ -25,11 +25,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <iostream>
 #include <utils/common/UtilExceptions.h>
@@ -122,9 +118,7 @@ GNEUndoList::p_abortLastCommandGroup() {
 void
 GNEUndoList::undo() {
     //std::cout << undoName().text() << "\n";
-    if (OptionsCont::getOptions().getBool("gui-testing-debug")) {
-        WRITE_WARNING("Keys Ctrl + Z (Undo) pressed");
-    }
+    WRITE_DEBUG("Keys Ctrl + Z (Undo) pressed");
     FXUndoList::undo();
     myParent->updateControls();
 }
@@ -134,9 +128,7 @@ void
 GNEUndoList::redo() {
     //std::cout << redoName().text() << "\n";
     //std::cout << undoName().text() << "\n";
-    if (OptionsCont::getOptions().getBool("gui-testing-debug")) {
-        WRITE_WARNING("Keys Ctrl + Y (Redo) pressed");
-    }
+    WRITE_DEBUG("Keys Ctrl + Y (Redo) pressed");
     FXUndoList::redo();
     myParent->updateControls();
 }
@@ -165,7 +157,7 @@ GNEUndoList::currentCommandGroupSize() const {
 long
 GNEUndoList::p_onUpdUndo(FXObject* sender, FXSelector, void*) {
     bool enable = canUndo() && !hasCommandGroup();
-    sender->handle(this, enable ? FXSEL(SEL_COMMAND, FXWindow::ID_ENABLE) : FXSEL(SEL_COMMAND, FXWindow::ID_DISABLE), 0);
+    sender->handle(this, enable ? FXSEL(SEL_COMMAND, FXWindow::ID_ENABLE) : FXSEL(SEL_COMMAND, FXWindow::ID_DISABLE), nullptr);
     FXString caption = undoName();
     if (hasCommandGroup()) {
         caption = ("Cannot Undo in the middle of " + myCommandGroups.top()->getDescription()).c_str();
@@ -183,7 +175,7 @@ GNEUndoList::p_onUpdUndo(FXObject* sender, FXSelector, void*) {
 long
 GNEUndoList::p_onUpdRedo(FXObject* sender, FXSelector, void*) {
     bool enable = canRedo() && !hasCommandGroup();
-    sender->handle(this, enable ? FXSEL(SEL_COMMAND, FXWindow::ID_ENABLE) : FXSEL(SEL_COMMAND, FXWindow::ID_DISABLE), 0);
+    sender->handle(this, enable ? FXSEL(SEL_COMMAND, FXWindow::ID_ENABLE) : FXSEL(SEL_COMMAND, FXWindow::ID_DISABLE), nullptr);
     FXString caption = redoName();
     if (hasCommandGroup()) {
         caption = ("Cannot Redo in the middle of " + myCommandGroups.top()->getDescription()).c_str();

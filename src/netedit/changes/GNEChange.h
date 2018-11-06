@@ -22,13 +22,10 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <fx.h>
+#include <vector>
 #include <utils/foxtools/fxexdefs.h>
 
 // ===========================================================================

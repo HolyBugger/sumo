@@ -17,11 +17,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include "DistributionCont.h"
 
@@ -59,12 +55,12 @@ DistributionCont::dictionary(const std::string& type,
                              const std::string& id) {
     TypedDistDict::iterator i = myDict.find(type);
     if (i == myDict.end()) {
-        return 0;
+        return nullptr;
     }
     DistDict& dict = (*i).second;
     DistDict::iterator j = dict.find(id);
     if (j == dict.end()) {
-        return 0;
+        return nullptr;
     }
     return (*j).second;
 }

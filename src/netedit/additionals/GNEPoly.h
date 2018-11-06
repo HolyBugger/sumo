@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include "GNEShape.h"
 
@@ -64,14 +60,23 @@ public:
      * @param[in] imgFile The raster image of the polygon
      * @param[in] relativePath set image file as relative path
      * @param[in] fill Whether the polygon shall be filled
+     * @param[in] lineWidth Line width when drawing unfilled polygon
      * @param[in] movementBlocked if movement of POI is blocked
      * @param[in] shapeBlocked if shape of POI is blocked
      */
-    GNEPoly(GNENet* net, const std::string& id, const std::string& type, const PositionVector& shape, bool geo, bool fill,
+    GNEPoly(GNENet* net, const std::string& id, const std::string& type, const PositionVector& shape, bool geo, bool fill, double lineWidth,
             const RGBColor& color, double layer, double angle, const std::string& imgFile, bool relativePath, bool movementBlocked, bool shapeBlocked);
 
     /// @brief Destructor
     ~GNEPoly();
+
+    /// @name functions for edit geometry
+    /// @{
+    /// @brief begin movement (used when user click over edge to start a movement, to avoid problems with problems with GL Tree)
+    void startGeometryMoving();
+
+    /// @brief begin movement (used when user click over edge to start a movement, to avoid problems with problems with GL Tree)
+    void endGeometryMoving();
 
     /**@brief change position of a vertex of shape without commiting change
     * @param[in] index index of Vertex shape
@@ -91,11 +96,12 @@ public:
     * @param[in] undoList The undoList on which to register changes
     */
     void commitShapeChange(const PositionVector& oldShape, GNEUndoList* undoList);
+    /// @}
 
     /// @name inherited from GNEShape
     /// @{
     /// @brief update pre-computed geometry information
-    void updateGeometry();
+    void updateGeometry(bool updateGrid);
 
     /**@brief writte shape element into a xml file
     * @param[in] device device in which write parameters of additional element
@@ -114,7 +120,7 @@ public:
     /**@brief Returns the name of the parent object
      * @return This object's parent id
      */
-    const std::string& getParentName() const;
+    std::string getParentName() const;
 
     /**@brief Returns an own popup-menu
      *
@@ -167,6 +173,20 @@ public:
     bool isValid(SumoXMLAttr key, const std::string& value);
     /// @}
 
+    /// @name Functions related with generic parameters
+    /// @{
+
+    /// @brief return generic parameters in string format
+    std::string getGenericParametersStr() const;
+
+    /// @brief return generic parameters as vector of pairs format
+    std::vector<std::pair<std::string, std::string> > getGenericParameters() const;
+
+    /// @brief set generic parameters in string format
+    void setGenericParametersStr(const std::string& value);
+
+    /// @}
+
     /**@brief return index of a vertex of shape, or of a new vertex if position is over an shape's edge
      * @param pos position of new/existent vertex
      * @param createIfNoExist enable or disable creation of new verte if there isn't another vertex in position
@@ -176,6 +196,9 @@ public:
 
     /// @brief delete the geometry point closest to the given pos
     void deleteGeometryPoint(const Position& pos, bool allowUndo = true);
+
+    /// @brief return true if polygon is blocked
+    bool isPolygonBlocked() const;
 
     /// @brief check if polygon is closed
     bool isPolygonClosed() const;
@@ -205,6 +228,9 @@ protected:
     /// @brief Latitude of Polygon
     PositionVector myGeoShape;
 
+    /// @brief flag for block shape
+    bool myBlockShape;
+
     /// @brief flag to indicate if polygon is open or closed
     bool myClosedShape;
 
@@ -223,6 +249,9 @@ private:
 
     /// @brief set attribute after validation
     void setAttribute(SumoXMLAttr key, const std::string& value);
+
+    /// @brief method for check if mouse is over objects
+    void mouseOverObject(const GUIVisualizationSettings& s) const;
 
     /// @brief Invalidated copy constructor.
     GNEPoly(const GNEPoly&) = delete;

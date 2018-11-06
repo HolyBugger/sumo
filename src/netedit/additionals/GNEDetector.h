@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include "GNEAdditional.h"
 
@@ -44,50 +40,65 @@ public:
      * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
      * @param[in] type GUIGlObjectType of detector
      * @param[in] tag Type of xml tag that define the detector (SUMO_TAG_E1DETECTOR, SUMO_TAG_LANE_AREA_DETECTOR, etc...)
-     * @param[in] icon GUIIcon associated to the detector
-     * @param[in] lane Lane of this detector belongs
+     * @param[in] pos position of the detector on the lane
+     * @param[in] freq the aggregation period the values the detector collects shall be summed up.
+     * @param[in] vehicleTypes space separated list of vehicle type ids to consider
+     * @param[in] filename The path to the output file.
+     * @param[in] name detector name
+     * @param[in] friendlyPos enable or disable friendly positions
+     * @param[in] block movement enable or disable additional movement
+     */
+    GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, double pos, double freq, const std::string& filename, const std::string& vehicleTypes, const std::string& name, bool friendlyPos, bool blockMovement);
+
+    /**@brief Constructor.
+     * @param[in] additionalParent additional parent of this detector (ID will be generated automatically)
+     * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
+     * @param[in] type GUIGlObjectType of detector
+     * @param[in] tag Type of xml tag that define the detector (SUMO_TAG_E1DETECTOR, SUMO_TAG_LANE_AREA_DETECTOR, etc...)
      * @param[in] pos position of the detector on the lane
      * @param[in] freq the aggregation period the values the detector collects shall be summed up.
      * @param[in] filename The path to the output file.
+     * @param[in] name detector name
      * @param[in] friendlyPos enable or disable friendly positions
-     * @param[in] additionalParent additional parent of this detector
      * @param[in] block movement enable or disable additional movement
      */
-    GNEDetector(const std::string& id, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, GUIIcon icon, GNELane* lane, double pos, double freq, const std::string& filename, bool friendlyPos, GNEAdditional* additionalParent, bool blockMovement);
+    GNEDetector(GNEAdditional* additionalParent, GNEViewNet* viewNet, GUIGlObjectType type, SumoXMLTag tag, double pos, double freq, const std::string& filename, const std::string& name, bool friendlyPos, bool blockMovement);
 
     /// @brief Destructor
     ~GNEDetector();
 
-    /**@brief writte additional element into a xml file
-     * @param[in] device device in which write parameters of additional element
-     */
-    virtual void writeAdditional(OutputDevice& device) const = 0;
+    /// @name members and functions relative to write additionals into XML
+    /// @{
+    /// @brief check if current additional is valid to be writed into XML (must be reimplemented in all detector childs)
+    virtual bool isAdditionalValid() const = 0;
 
-    /// @brief check if Position of detector is fixed
-    virtual bool isDetectorPositionFixed() const = 0;
+    /// @brief return a string with the current additional problem (must be reimplemented in all detector childs)
+    virtual std::string getAdditionalProblem() const = 0;
+
+    /// @brief fix additional problem (must be reimplemented in all detector childs)
+    virtual void fixAdditionalProblem() = 0;
+    /// @}
 
     /// @brief get lane
-    GNELane* getLane() const;
+    virtual GNELane* getLane() const = 0;
 
-    /// @brief get absolute position over Lane
-    double getAbsolutePositionOverLane() const;
+    /// @brief get position over lane
+    double getPositionOverLane() const;
 
     /// @name Functions related with geometry of element
     /// @{
     /**@brief change the position of the element geometry without saving in undoList
-     * @param[in] newPosition new position of geometry
-     * @note should't be called in drawGL(...) functions to avoid smoothness issues
+     * @param[in] offset Position used for calculate new position of geometry without updating RTree
      */
-    void moveGeometry(const Position& oldPos, const Position& offset);
+    virtual void moveGeometry(const Position& offset) = 0;
 
     /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
-     * @param[in] oldPos the old position of additional
      * @param[in] undoList The undoList on which to register changes
      */
-    void commitGeometryMoving(const Position& oldPos, GNEUndoList* undoList);
+    virtual void commitGeometryMoving(GNEUndoList* undoList) = 0;
 
     /// @brief update pre-computed geometry information
-    virtual void updateGeometry() = 0;
+    virtual void updateGeometry(bool updateGrid) = 0;
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
@@ -98,7 +109,7 @@ public:
     /**@brief Returns the name of the parent object
      * @return This object's parent id
      */
-    const std::string& getParentName() const;
+    std::string getParentName() const;
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -128,12 +139,15 @@ public:
      * @return true if the value is valid, false in other case
      */
     virtual bool isValid(SumoXMLAttr key, const std::string& value) = 0;
+
+    /// @brief get PopPup ID (Used in AC Hierarchy)
+    std::string getPopUpID() const;
+
+    /// @brief get Hierarchy Name (Used in AC Hierarchy)
+    std::string getHierarchyName() const;
     /// @}
 
 protected:
-    /// @brief The lane in which this detector is placed
-    GNELane* myLane;
-
     /// @brief position of detector over Lane
     double myPositionOverLane;
 
@@ -142,6 +156,9 @@ protected:
 
     /// @brief The path to the output file
     std::string myFilename;
+
+    /// @brief attribute vehicle types
+    std::string myVehicleTypes;
 
     /// @brief Flag for friendly position
     bool myFriendlyPosition;

@@ -19,11 +19,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <fx.h>
 #include <fxkeys.h>
@@ -108,7 +104,7 @@ MFXEditableTable::MFXEditableTable(FXComposite* p, FXObject* tgt,
                                    FXint x, FXint y, FXint w, FXint h,
                                    FXint pl, FXint pr, FXint pt, FXint pb)
     : FXTable(p, tgt, sel, opts, x, y, w, h, pl, pr, pt, pb),
-      myEditedItem(0) {
+      myEditedItem(nullptr) {
     myEditor =
         new FXTextField((FXComposite*)getParent(), 1, this,
                         ID_EDITOR, FRAME_NORMAL | LAYOUT_EXPLICIT);
@@ -163,7 +159,7 @@ MFXEditableTable::onLeftBtnRelease(FXObject* sender, FXSelector sel, void* ptr) 
 
 void
 MFXEditableTable::editItem(FXTableItem* item, FXint how) {
-    if (item == 0) {
+    if (item == nullptr) {
         editEnd();
         return;
     }
@@ -211,11 +207,11 @@ MFXEditableTable::editEnd() {
         return;
     }
     FXTableItem* item = myEditedItem;
-    myEditedItem = NULL;
+    myEditedItem = nullptr;
     myEditor->hide();
     setFocus();
     FXString text = myEditor->getText();
-    myEditedItem = 0;
+    myEditedItem = nullptr;
     if (item->getText() == text) {
         return;
     }
@@ -239,7 +235,7 @@ MFXEditableTable::editEnd() {
 long
 MFXEditableTable::onEditEnd(FXObject*, FXSelector , void*) {
     delete myEditedItem;
-    myEditedItem = 0;
+    myEditedItem = nullptr;
     return 1;
 }
 
@@ -249,7 +245,7 @@ MFXEditableTable::editCancel() {
     if (!myEditedItem) {
         return;
     }
-    myEditedItem = 0;
+    myEditedItem = nullptr;
     myEditor->hide();
     setFocus();
     killSelection(true);

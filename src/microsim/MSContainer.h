@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <vector>
@@ -74,7 +70,7 @@ public:
     class MSContainerStage_Driving : public MSTransportable::Stage_Driving {
     public:
         /// constructor
-        MSContainerStage_Driving(const MSEdge& destination, MSStoppingPlace* toStop,
+        MSContainerStage_Driving(const MSEdge* destination, MSStoppingPlace* toStop,
                                  const double arrivalPos, const std::vector<std::string>& lines);
 
         /// destructor
@@ -92,14 +88,14 @@ public:
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const;
+        virtual void tripInfoOutput(OutputDevice& os, const MSTransportable* const transportable) const;
 
         /** @brief Called on writing vehroute output
          *
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void routeOutput(OutputDevice& os) const;
+        virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const;
     };
 
     /**
@@ -157,13 +153,13 @@ public:
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const;
+        virtual void tripInfoOutput(OutputDevice& os, const MSTransportable* const transportable) const;
 
         /** @brief Called on writing vehroute output
          * @param[in] os The stream to write the information into
          * @exception IOError not yet implemented
          */
-        virtual void routeOutput(OutputDevice& os) const;
+        virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const;
 
         /** @brief Called for writing the events output
          * @param[in] os The stream to write the information into
@@ -246,14 +242,15 @@ public:
     * @param[in] os The stream to write the information into
     * @exception IOError not yet implemented
     */
-    virtual void tripInfoOutput(OutputDevice& os, MSTransportable* transportable) const;
+    virtual void tripInfoOutput(OutputDevice& os) const;
 
     /** @brief Called on writing vehroute output
     *
     * @param[in] os The stream to write the information into
+    * @param[in] withRouteLength whether route length shall be written
     * @exception IOError not yet implemented
     */
-    virtual void routeOutput(OutputDevice& os) const;
+    virtual void routeOutput(OutputDevice& os, const bool withRouteLength) const;
 
 private:
     /// @brief Invalidated copy constructor.

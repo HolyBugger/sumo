@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <map>
 #include <string>
@@ -211,6 +207,9 @@ public:
      */
     void setTLControllingInformation(const NBEdgeCont& ec, const NBNodeCont& nc);
 
+    /// @brief Returns a list of all definitions (convenience for easier iteration)
+    typedef std::vector<NBTrafficLightDefinition*> Definitions;
+    Definitions getDefinitions() const;
 
 private:
     /// @brief Definition of internal the container types
@@ -219,7 +218,6 @@ private:
     typedef std::map<std::string, NBTrafficLightDefinition*> Program2Def;
     typedef std::map<std::string, Program2Def> Id2Defs;
     typedef std::vector<NBTrafficLightLogic*> Logics;
-    typedef std::vector<NBTrafficLightDefinition*> Definitions;
 
     /// @brief The container for previously computed tl-logics
     Id2Logics myComputed;
@@ -239,8 +237,6 @@ private:
     static const Program2Def EmptyDefinitions;
 
 private:
-    /// @brief Returns a list of all definitions (convenience for easier iteration)
-    Definitions getDefinitions() const;
 
     /** @brief Destroys all stored definitions and logics
      */

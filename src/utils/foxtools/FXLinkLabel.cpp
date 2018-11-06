@@ -20,11 +20,7 @@
 /* =========================================================================
  * included modules
  * ======================================================================= */
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #ifdef WIN32
 #define NOMINMAX
@@ -38,7 +34,7 @@
 FXint
 FXLinkLabel::fxexecute(FXString link) {
 #ifdef WIN32
-    return (int)ShellExecute(NULL, "open", link.text(), NULL, NULL, SW_SHOWNORMAL) > 32;
+    return (int)ShellExecute(nullptr, "open", link.text(), nullptr, nullptr, SW_SHOWNORMAL) > 32;
 #else
     FXString ext = FXPath::extension(link);
     FXString list;

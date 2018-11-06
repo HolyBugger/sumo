@@ -20,11 +20,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <utils/common/VectorHelper.h>
@@ -72,7 +68,7 @@ NIVissimClosures*
 NIVissimClosures::dictionary(const std::string& name) {
     DictType::iterator i = myDict.find(name);
     if (i == myDict.end()) {
-        return 0;
+        return nullptr;
     }
     return (*i).second;
 }

@@ -22,18 +22,17 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
+#include <memory>
 #include <utils/common/TplConvert.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/vehicle/SUMOVehicle.h>
 #include <utils/common/WrappingCommand.h>
+#include <utils/common/RGBColor.h>
 #include <microsim/MSNet.h>
 #include <microsim/MSVehicle.h>
+#include <microsim/MSRouteHandler.h>
 #include <microsim/MSVehicleControl.h>
 #include <microsim/MSEventControl.h>
 #include <microsim/MSDriverState.h>
@@ -63,6 +62,15 @@
 #define DEFAULT_MANUAL_TYPE ""
 #define DEFAULT_AUTOMATED_TYPE ""
 
+
+
+
+// ---------------------------------------------------------------------------
+// static members
+// ---------------------------------------------------------------------------
+std::set<MSDevice_ToC*> MSDevice_ToC::instances = std::set<MSDevice_ToC*>();
+std::set<std::string> MSDevice_ToC::createdOutputFiles;
+
 // ===========================================================================
 // method definitions
 // ===========================================================================
@@ -74,9 +82,9 @@ MSDevice_ToC::insertOptions(OptionsCont& oc) {
     oc.addOptionSubTopic("ToC Device");
     insertDefaultAssignmentOptions("toc", "ToC Device", oc);
 
-    oc.doRegister("device.toc.manualType", new Option_String(""));
+    oc.doRegister("device.toc.manualType", new Option_String());
     oc.addDescription("device.toc.manualType", "ToC Device", "Vehicle type for manual driving regime.");
-    oc.doRegister("device.toc.automatedType", new Option_String(""));
+    oc.doRegister("device.toc.automatedType", new Option_String());
     oc.addDescription("device.toc.automatedType", "ToC Device", "Vehicle type for automated driving regime.");
     oc.doRegister("device.toc.responseTime", new Option_Float(DEFAULT_RESPONSE_TIME));
     oc.addDescription("device.toc.responseTime", "ToC Device", "Average response time needed by a driver to take back control.");
@@ -86,11 +94,13 @@ MSDevice_ToC::insertOptions(OptionsCont& oc) {
     oc.addDescription("device.toc.initialAwareness", "ToC Device", "Average awareness a driver has initially after a ToC.");
     oc.doRegister("device.toc.mrmDecel", new Option_Float(DEFAULT_MRM_DECEL));
     oc.addDescription("device.toc.mrmDecel", "ToC Device", "Deceleration rate applied during a 'minimum risk maneuver'.");
+    oc.doRegister("device.toc.useColorScheme", new Option_Bool(true));
+    oc.addDescription("device.toc.useColorScheme", "ToC Device", "Whether a coloring scheme shall by applied to indicate the different ToC stages.");
 }
 
 
 void
-MSDevice_ToC::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into) {
+MSDevice_ToC::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into) {
     OptionsCont& oc = OptionsCont::getOptions();
     if (equippedByDefaultAssignmentOptions(oc, "toc", v, false)) {
         std::string manualType = getManualType(v, oc);
@@ -99,109 +109,73 @@ MSDevice_ToC::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into) 
         double recoveryRate = getRecoveryRate(v, oc);
         double initialAwareness = getInitialAwareness(v, oc);
         double mrmDecel = getMRMDecel(v, oc);
+        bool useColoring = useColorScheme(v, oc);
+        std::string deviceID = "toc_" + v.getID();
+        std::string file = getOutputFilename(v, oc);
         // build the device
-        MSDevice_ToC* device = new MSDevice_ToC(v, "toc_" + v.getID(),
-                manualType, automatedType, responseTime, recoveryRate, initialAwareness, mrmDecel);
+        MSDevice_ToC* device = new MSDevice_ToC(v, deviceID, file,
+                                                manualType, automatedType, responseTime, recoveryRate,
+                                                initialAwareness, mrmDecel, useColoring);
         into.push_back(device);
     }
 }
 
 
-
 std::string
-MSDevice_ToC::getStringParam(const SUMOVehicle& v, const OptionsCont& oc, std::string paramName, std::string deflt, bool required) {
-    std::string result = deflt;
-    if (v.getParameter().knowsParameter("device.toc."+paramName)) {
+MSDevice_ToC::getOutputFilename(const SUMOVehicle& v, const OptionsCont& oc) {
+    // Default of "" means no output
+    std::string file = "";
+    if (v.getParameter().knowsParameter("device.toc.file")) {
         try {
-            result = v.getParameter().getParameter("device.toc."+paramName, "").c_str();
+            file = v.getParameter().getParameter("device.toc.file", file);
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.toc."+paramName, "") + "'for vehicle parameter 'toc."+paramName+"'");
+            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.toc.file", file) + "'for vehicle parameter 'ssm.measures'");
         }
-    } else if (v.getVehicleType().getParameter().knowsParameter("device.toc."+paramName)) {
+    } else if (v.getVehicleType().getParameter().knowsParameter("device.toc.file")) {
         try {
-            result = v.getVehicleType().getParameter().getParameter("device.toc."+paramName, "").c_str();
+            file = v.getVehicleType().getParameter().getParameter("device.toc.file", file);
         } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.toc."+paramName, "") + "'for vType parameter 'toc."+paramName+"'");
-        }
-    } else {
-        try {
-            result = oc.getString("device.toc."+paramName);
-        } catch (...) {
-            if (required) {
-                throw ProcessError("Missing parameter 'device.toc."+paramName+"' for vehicle '" + v.getID());
-            } else {
-                result = deflt;
-#ifdef DEBUG_TOC
-                std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.toc."+paramName+"'. Using default of '" << result << "'\n";
-#endif
-            }
-        }
-    }
-    return result;
-}
-
-
-double
-MSDevice_ToC::getFloatParam(const SUMOVehicle& v, const OptionsCont& oc, std::string paramName, double deflt, bool required) {
-    double result = deflt;
-    if (v.getParameter().knowsParameter("device.toc."+paramName)) {
-        try {
-            result = TplConvert::_2double(v.getParameter().getParameter("device.toc."+paramName, "").c_str());
-        } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getParameter().getParameter("device.toc."+paramName, "") + "'for vehicle parameter 'toc."+paramName+"'");
-        }
-    } else if (v.getVehicleType().getParameter().knowsParameter("device.toc."+paramName)) {
-        try {
-            result = TplConvert::_2double(v.getVehicleType().getParameter().getParameter("device.toc."+paramName, "").c_str());
-        } catch (...) {
-            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.toc."+paramName, "") + "'for vType parameter 'toc."+paramName+"'");
+            WRITE_WARNING("Invalid value '" + v.getVehicleType().getParameter().getParameter("device.toc.file", file) + "'for vType parameter 'ssm.measures'");
         }
     } else {
-        try {
-            result = oc.getFloat("device.toc."+paramName);
-        } catch (...) {
-            if (required) {
-                throw ProcessError("Missing parameter 'device.toc."+paramName+"' for vehicle '" + v.getID());
-            } else {
-                result = deflt;
-#ifdef DEBUG_TOC
-            std::cout << "vehicle '" << v.getID() << "' does not supply vehicle parameter 'device.toc."+paramName+"'. Using default of '" << result << "'\n";
-#endif
-            }
-        }
+        file = oc.getString("device.toc.file") == "" ? file : oc.getString("device.toc.file");
     }
-    return result;
+    return file;
 }
-
 
 std::string
 MSDevice_ToC::getManualType(const SUMOVehicle& v, const OptionsCont& oc) {
-    return getStringParam(v, oc, "manualType", DEFAULT_MANUAL_TYPE, true);
+    return getStringParam(v, oc, "toc.manualType", DEFAULT_MANUAL_TYPE, true);
 }
 
 std::string
 MSDevice_ToC::getAutomatedType(const SUMOVehicle& v, const OptionsCont& oc) {
-    return getStringParam(v, oc, "automatedType", DEFAULT_AUTOMATED_TYPE, true);
+    return getStringParam(v, oc, "toc.automatedType", DEFAULT_AUTOMATED_TYPE, true);
 }
 
 double
 MSDevice_ToC::getResponseTime(const SUMOVehicle& v, const OptionsCont& oc) {
-    return getFloatParam(v, oc, "responseTime", DEFAULT_RESPONSE_TIME, false);
+    return getFloatParam(v, oc, "toc.responseTime", DEFAULT_RESPONSE_TIME, false);
 }
 
 double
 MSDevice_ToC::getRecoveryRate(const SUMOVehicle& v, const OptionsCont& oc) {
-    return getFloatParam(v, oc, "recoveryRate", DEFAULT_RECOVERY_RATE, false);
+    return getFloatParam(v, oc, "toc.recoveryRate", DEFAULT_RECOVERY_RATE, false);
 }
 
 double
 MSDevice_ToC::getInitialAwareness(const SUMOVehicle& v, const OptionsCont& oc) {
-    return getFloatParam(v, oc, "initialAwareness", DEFAULT_INITIAL_AWARENESS, false);
+    return getFloatParam(v, oc, "toc.initialAwareness", DEFAULT_INITIAL_AWARENESS, false);
 }
 
 double
 MSDevice_ToC::getMRMDecel(const SUMOVehicle& v, const OptionsCont& oc) {
-    return getFloatParam(v, oc, "mrmDecel", DEFAULT_MRM_DECEL, false);
+    return getFloatParam(v, oc, "toc.mrmDecel", DEFAULT_MRM_DECEL, false);
+}
+
+bool
+MSDevice_ToC::useColorScheme(const SUMOVehicle& v, const OptionsCont& oc) {
+    return getBoolParam(v, oc, "toc.useColorScheme", "false", false);
 }
 
 
@@ -209,51 +183,106 @@ MSDevice_ToC::getMRMDecel(const SUMOVehicle& v, const OptionsCont& oc) {
 // ---------------------------------------------------------------------------
 // MSDevice_ToC-methods
 // ---------------------------------------------------------------------------
-MSDevice_ToC::MSDevice_ToC(SUMOVehicle& holder, const std::string& id,
-        std::string manualType, std::string automatedType,
-        SUMOTime responseTime, double recoveryRate, double initialAwareness, double mrmDecel) :
-    MSDevice(holder, id),
-    myManualType(manualType),
-    myAutomatedType(automatedType),
+MSDevice_ToC::MSDevice_ToC(SUMOVehicle& holder, const std::string& id, const std::string& outputFilename,
+                           std::string manualType, std::string automatedType,
+                           SUMOTime responseTime, double recoveryRate, double initialAwareness,
+                           double mrmDecel, bool useColoring) :
+    MSVehicleDevice(holder, id),
+    myManualTypeID(manualType),
+    myAutomatedTypeID(automatedType),
     myResponseTime(responseTime),
     myRecoveryRate(recoveryRate),
     myInitialAwareness(initialAwareness),
     myMRMDecel(mrmDecel),
+    myCurrentAwareness(1.),
+    myUseColorScheme(useColoring),
     myTriggerMRMCommand(nullptr),
     myTriggerToCCommand(nullptr),
     myRecoverAwarenessCommand(nullptr),
     myExecuteMRMCommand(nullptr),
-    myPrepareToCCommand(nullptr)
-    {
+    myPrepareToCCommand(nullptr),
+    myOutputFile(nullptr),
+    myEvents() {
     // Take care! Holder is currently being constructed. Cast occurs before completion.
     myHolderMS = static_cast<MSVehicle*>(&holder);
     // Ensure that the holder receives a driver state as soon as it is created (can't be done here, since myHolderMS is incomplete)
     MSNet::getInstance()->getBeginOfTimestepEvents()->addEvent(new WrappingCommand<MSDevice_ToC>(this, &MSDevice_ToC::ensureDriverStateExistence), SIMSTEP);
 
-    if (holder.getVehicleType().getID() == manualType) {
+    if (outputFilename != "") {
+        myOutputFile = &OutputDevice::getDevice(outputFilename);
+        // TODO: make xsd, include header
+        // myOutputFile.writeXMLHeader("ToCDeviceLog", "ToCDeviceLog.xsd");
+        if (createdOutputFiles.count(outputFilename) == 0) {
+            myOutputFile->openTag("ToCDeviceLog");
+            createdOutputFiles.insert(outputFilename);
+        }
+    }
+    // register at static instance container
+    instances.insert(this);
+
+    // Check if the given vTypes for the ToC Device are vTypeDistributions
+    MSVehicleControl& vehCtrl = MSNet::getInstance()->getVehicleControl();
+    const bool automatedVTypeIsDist = vehCtrl.hasVTypeDistribution(myAutomatedTypeID);
+    const bool manualVTypeIsDist = vehCtrl.hasVTypeDistribution(myManualTypeID);
+
+    // Check if the vType of the holder matches one of the given vTypes
+    std::string holderVTypeID = holder.getVehicleType().getID();
+    if (holderVTypeID == myManualTypeID) {
         myState = ToCState::MANUAL;
-        myCurrentAwareness = 1.;
-    } else if (holder.getVehicleType().getID() == automatedType) {
+    } else if (holderVTypeID == myAutomatedTypeID) {
         myState = ToCState::AUTOMATED;
-        myCurrentAwareness = 0.;
+    } else if (manualVTypeIsDist && holderVTypeID.find(myManualTypeID) == 0) {
+        // Holder type id starts with type distribution name.
+        // We assume that this means that it is from the given distribution.
+        myState = ToCState::MANUAL;
+        myManualTypeID = holderVTypeID;
+    } else if (automatedVTypeIsDist && holderVTypeID.find(myAutomatedTypeID) == 0) {
+        // Holder type id starts with type distribution name.
+        // We assume that this means that it is from the given distribution.
+        myState = ToCState::AUTOMATED;
+        myAutomatedTypeID = holderVTypeID;
     } else {
         throw ProcessError("Vehicle type of vehicle '" + holder.getID() + "' ('" + holder.getVehicleType().getID()
-                + "') must coincide with manualType ('" + manualType + "') or automatedType ('" + automatedType + "') specified for its ToC-device.");
+                           + "') must coincide with manualType ('" + manualType + "') or automatedType ('" + automatedType
+                           + "') specified for its ToC-device (or drawn from the specified vTypeDistributions).");
     }
+
+    // Eventually instantiate given vTypes from distributions
+    if (myState == ToCState::MANUAL && automatedVTypeIsDist) {
+        myAutomatedTypeID = vehCtrl.getVType(myAutomatedTypeID, MSRouteHandler::getParsingRNG())->getID();
+    } else if (myState == ToCState::AUTOMATED && manualVTypeIsDist) {
+        myManualTypeID = vehCtrl.getVType(myManualTypeID, MSRouteHandler::getParsingRNG())->getID();
+    }
+
+    initColorScheme();
 
 #ifdef DEBUG_TOC
     std::cout << "initialized device '" << id << "' with "
-            << "myManualType=" << myManualType << ", "
-            << "myAutomatedType=" << myAutomatedType << ", "
-            << "myResponseTime=" << myResponseTime << ", "
-            << "myRecoveryRate=" << myRecoveryRate << ", "
-            << "myInitialAwareness=" << myInitialAwareness << ", "
-            << "myMRMDecel=" << myMRMDecel << ", "
-            << "myCurrentAwareness=" << myCurrentAwareness << ", "
-            << "myState=" << _2string(myState) << std::endl;
+              << "outputFilename=" << outputFilename << ", "
+              << "myManualType=" << myManualTypeID << ", "
+              << "myAutomatedType=" << myAutomatedTypeID << ", "
+              << "myResponseTime=" << myResponseTime << ", "
+              << "myRecoveryRate=" << myRecoveryRate << ", "
+              << "myInitialAwareness=" << myInitialAwareness << ", "
+              << "myMRMDecel=" << myMRMDecel << ", "
+              << "myCurrentAwareness=" << myCurrentAwareness << ", "
+              << "myState=" << _2string(myState) << std::endl;
 #endif
 
     assert(myInitialAwareness <= 1.0 && myInitialAwareness >= 0.0);
+}
+
+
+
+void
+MSDevice_ToC::initColorScheme() {
+    //RGBColor(red, green, blue)
+    myColorScheme[MANUAL] = MSNet::getInstance()->getVehicleControl().getVType(myManualTypeID)->getColor();
+    myColorScheme[AUTOMATED] = MSNet::getInstance()->getVehicleControl().getVType(myAutomatedTypeID)->getColor();
+    myColorScheme[PREPARING_TOC] = RGBColor(200, 200, 250); // light blue
+    myColorScheme[MRM] = RGBColor(250, 50, 50); // red
+    myColorScheme[RECOVERING] = RGBColor(250, 210, 150); // light yellow
+    myColorScheme[UNDEFINED] = RGBColor(150, 150, 150); // gray
 }
 
 
@@ -263,8 +292,10 @@ MSDevice_ToC::ensureDriverStateExistence(SUMOTime /* t */) {
     std::cout << SIMTIME << " ensureDriverStateExistence() for vehicle '" << myHolder.getID() << "'" << std::endl;
 #endif
     // Ensure that the holder has a driver state
-    if (myHolderMS->getDriverState() == nullptr) {
-        // create an MSDriverState for the vehicle
+    if (myHolderMS->getDriverState() == nullptr
+            && !myHolderMS->hasDevice("driverstate")) {
+        // Create an MSDriverState for the vehicle if it hasn't one already,
+        // and has no DriverState Device attached (that will create the driver state, then)
         myHolderMS->createDriverState();
     }
     return 0;
@@ -272,11 +303,21 @@ MSDevice_ToC::ensureDriverStateExistence(SUMOTime /* t */) {
 
 MSDevice_ToC::~MSDevice_ToC() {
     // deschedule commands associated to this device
-    if (myTriggerMRMCommand != nullptr) myTriggerMRMCommand->deschedule();
-    if (myTriggerToCCommand != nullptr) myTriggerToCCommand->deschedule();
-    if (myRecoverAwarenessCommand != nullptr) myRecoverAwarenessCommand->deschedule();
-    if (myExecuteMRMCommand != nullptr) myExecuteMRMCommand->deschedule();
-    if (myPrepareToCCommand != nullptr) myPrepareToCCommand->deschedule();
+    if (myTriggerMRMCommand != nullptr) {
+        myTriggerMRMCommand->deschedule();
+    }
+    if (myTriggerToCCommand != nullptr) {
+        myTriggerToCCommand->deschedule();
+    }
+    if (myRecoverAwarenessCommand != nullptr) {
+        myRecoverAwarenessCommand->deschedule();
+    }
+    if (myExecuteMRMCommand != nullptr) {
+        myExecuteMRMCommand->deschedule();
+    }
+    if (myPrepareToCCommand != nullptr) {
+        myPrepareToCCommand->deschedule();
+    }
 }
 
 void
@@ -296,10 +337,17 @@ MSDevice_ToC::setAwareness(double value) {
 void
 MSDevice_ToC::setState(ToCState state) {
     myState = state;
+    if (myUseColorScheme) {
+        setVehicleColor();
+    }
 }
 
-
-
+void
+MSDevice_ToC::setVehicleColor() {
+    const SUMOVehicleParameter& p = myHolder.getParameter();
+    p.color = myColorScheme[myState];
+    p.parametersSet |= VEHPARS_COLOR_SET;
+}
 
 void
 MSDevice_ToC::requestMRM() {
@@ -333,8 +381,8 @@ MSDevice_ToC::requestToC(SUMOTime timeTillMRM) {
 
         // Clear eventually prior scheduled MRM
 //        descheduleMRM();
-        assert(myExecuteMRMCommand==nullptr);
-        assert(myTriggerMRMCommand==nullptr);
+        assert(myExecuteMRMCommand == nullptr);
+        assert(myTriggerMRMCommand == nullptr);
         if (responseTime > timeTillMRM) {
             // Schedule new MRM if driver response time is higher than permitted
             myTriggerMRMCommand = new WrappingCommand<MSDevice_ToC>(this, &MSDevice_ToC::triggerMRM);
@@ -345,12 +393,17 @@ MSDevice_ToC::requestToC(SUMOTime timeTillMRM) {
         myPrepareToCCommand = new WrappingCommand<MSDevice_ToC>(this, &MSDevice_ToC::ToCPreparationStep);
         MSNet::getInstance()->getBeginOfTimestepEvents()->addEvent(myPrepareToCCommand, SIMSTEP + DELTA_T);
         setState(PREPARING_TOC);
+
+        // Record event
+        if (generatesOutput()) {
+            myEvents.push(std::make_pair(SIMSTEP, "TOR"));
+        }
     } else {
         // Switch to automated mode is performed immediately
         // Note that the transition MRM/PREPARING_TOC->AUTOMATED, where a downward ToC is aborted, is handled here as well.
         if (timeTillMRM > 0.) {
             std::stringstream ss;
-            ss << "[t=" << SIMTIME << "] Positive transition time (" << timeTillMRM/1000. << "s.) for upward ToC of vehicle '" << myHolder.getID() << "' is ignored.";
+            ss << "[t=" << SIMTIME << "] Positive transition time (" << timeTillMRM / 1000. << "s.) for upward ToC of vehicle '" << myHolder.getID() << "' is ignored.";
             WRITE_WARNING(ss.str());
         }
         triggerUpwardToC(SIMSTEP + DELTA_T);
@@ -370,8 +423,13 @@ MSDevice_ToC::triggerMRM(SUMOTime /* t */) {
     myExecuteMRMCommand = new WrappingCommand<MSDevice_ToC>(this, &MSDevice_ToC::MRMExecutionStep);
     MSNet::getInstance()->getBeginOfTimestepEvents()->addEvent(myExecuteMRMCommand, SIMSTEP + DELTA_T);
     setState(MRM);
-    switchHolderType(myAutomatedType);
-    setAwareness(0.);
+    switchHolderType(myAutomatedTypeID);
+    setAwareness(1.);
+
+    // Record event
+    if (generatesOutput()) {
+        myEvents.push(std::make_pair(SIMSTEP, "MRM"));
+    }
 
     return 0;
 }
@@ -382,9 +440,14 @@ MSDevice_ToC::triggerUpwardToC(SUMOTime /* t */) {
 #ifdef DEBUG_TOC
     std::cout << SIMTIME << " triggerUpwardToC() for vehicle '" << myHolder.getID() << "'" << std::endl;
 #endif
-    switchHolderType(myAutomatedType);
-    setAwareness(0.);
+    switchHolderType(myAutomatedTypeID);
+    setAwareness(1.);
     setState(AUTOMATED);
+
+    // Record event
+    if (generatesOutput()) {
+        myEvents.push(std::make_pair(SIMSTEP, "ToCup"));
+    }
 
     descheduleToC();
     // Eventually stop ToC preparation process
@@ -403,7 +466,7 @@ MSDevice_ToC::triggerDownwardToC(SUMOTime /* t */) {
 #ifdef DEBUG_TOC
     std::cout << SIMTIME << " triggerDownwardToC() for vehicle '" << myHolder.getID() << "'" << std::endl;
 #endif
-    switchHolderType(myManualType);
+    switchHolderType(myManualTypeID);
 
     // @todo: Sample initial awareness
     double initialAwareness = myInitialAwareness;
@@ -418,6 +481,11 @@ MSDevice_ToC::triggerDownwardToC(SUMOTime /* t */) {
     MSNet::getInstance()->getBeginOfTimestepEvents()->addEvent(myRecoverAwarenessCommand, SIMSTEP + DELTA_T);
     setState(RECOVERING);
 
+    // Record event
+    if (generatesOutput()) {
+        myEvents.push(std::make_pair(SIMSTEP, "ToCdown"));
+    }
+
     descheduleToC();
     // Eventually stop ToC preparation process
     descheduleToCPreparation();
@@ -430,12 +498,12 @@ MSDevice_ToC::triggerDownwardToC(SUMOTime /* t */) {
 void
 MSDevice_ToC::descheduleMRM() {
     // Eventually abort scheduled MRM
-    if(myTriggerMRMCommand != nullptr) {
+    if (myTriggerMRMCommand != nullptr) {
         myTriggerMRMCommand->deschedule();
         myTriggerMRMCommand = nullptr;
     }
     // Eventually abort ongoing MRM
-    if(myExecuteMRMCommand != nullptr) {
+    if (myExecuteMRMCommand != nullptr) {
         myExecuteMRMCommand->deschedule();
         myExecuteMRMCommand = nullptr;
     }
@@ -444,7 +512,7 @@ MSDevice_ToC::descheduleMRM() {
 
 void
 MSDevice_ToC::descheduleToC() {
-    if(myTriggerToCCommand != nullptr) {
+    if (myTriggerToCCommand != nullptr) {
         myTriggerToCCommand->deschedule();
         myTriggerToCCommand = nullptr;
     }
@@ -453,7 +521,7 @@ MSDevice_ToC::descheduleToC() {
 void
 MSDevice_ToC::descheduleToCPreparation() {
     // Eventually stop ToC preparation process
-    if(myPrepareToCCommand != nullptr) {
+    if (myPrepareToCCommand != nullptr) {
         myPrepareToCCommand->deschedule();
         myPrepareToCCommand = nullptr;
     }
@@ -462,7 +530,7 @@ MSDevice_ToC::descheduleToCPreparation() {
 void
 MSDevice_ToC::descheduleRecovery() {
     // Eventually stop ToC preparation process
-    if(myRecoverAwarenessCommand != nullptr) {
+    if (myRecoverAwarenessCommand != nullptr) {
         myRecoverAwarenessCommand->deschedule();
         myRecoverAwarenessCommand = nullptr;
     }
@@ -475,7 +543,7 @@ MSDevice_ToC::switchHolderType(const std::string& targetTypeID) {
     std::cout << SIMTIME << " Switching type of vehicle '" << myHolder.getID() << "' to '" << targetTypeID << "'" << std::endl;
 #endif
     MSVehicleType* targetType = MSNet::getInstance()->getVehicleControl().getVType(targetTypeID);
-    if (targetType == 0) {
+    if (targetType == nullptr) {
         WRITE_ERROR("vType '" + targetType->getID() + "' for vehicle '" + myHolder.getID() + "' is not known.");
         return;
     }
@@ -496,6 +564,7 @@ MSDevice_ToC::ToCPreparationStep(SUMOTime /* t */) {
 #ifdef DEBUG_TOC
         std::cout << SIMTIME << " Aborting ToC preparation for vehicle '" << myHolder.getID() << "'" << std::endl;
 #endif
+        descheduleToCPreparation();
         return 0;
     }
 }
@@ -541,17 +610,17 @@ MSDevice_ToC::awarenessRecoveryStep(SUMOTime /* t */) {
 #endif
     // Proceed with awareness recovery
     if (myCurrentAwareness < 1.0) {
-        setAwareness(MIN2(1.0, myCurrentAwareness + TS*myRecoveryRate));
+        setAwareness(MIN2(1.0, myCurrentAwareness + TS * myRecoveryRate));
     }
 
 #ifdef DEBUG_TOC
-     std::cout << SIMTIME << " currentAwareness = " << myCurrentAwareness << std::endl;
+    std::cout << SIMTIME << " currentAwareness = " << myCurrentAwareness << std::endl;
 #endif
 
     const bool awarenessRecoveryCompleted = myCurrentAwareness == 1.0;
     if (awarenessRecoveryCompleted) {
 #ifdef DEBUG_TOC
-     std::cout << SIMTIME << " Awareness recovery completed for veh '" << myHolder.getID() << "'" << std::endl;
+        std::cout << SIMTIME << " Awareness recovery completed for veh '" << myHolder.getID() << "'" << std::endl;
 #endif
         myRecoverAwarenessCommand->deschedule();
         myRecoverAwarenessCommand = nullptr;
@@ -565,9 +634,9 @@ MSDevice_ToC::awarenessRecoveryStep(SUMOTime /* t */) {
 std::string
 MSDevice_ToC::getParameter(const std::string& key) const {
     if (key == "manualType") {
-        return myManualType;
+        return myManualTypeID;
     } else if (key == "automatedType") {
-        return myAutomatedType;
+        return myAutomatedTypeID;
     } else if (key == "responseTime") {
         return toString(STEPS2TIME(myResponseTime));
     } else if (key == "recoveryRate") {
@@ -593,12 +662,14 @@ MSDevice_ToC::setParameter(const std::string& key, const std::string& value) {
     std::cout << "MSDevice_ToC::setParameter(key=" << key << ", value=" << value << ")" << std::endl;
 #endif
     if (key == "manualType") {
-        myManualType = value;
+        myManualTypeID = value;
+        myColorScheme[MANUAL] = MSNet::getInstance()->getVehicleControl().getVType(myManualTypeID)->getColor();
         if (myState == MANUAL) {
             switchHolderType(value);
         }
     } else if (key == "automatedType") {
-        myAutomatedType = value;
+        myAutomatedTypeID = value;
+        myColorScheme[AUTOMATED] = MSNet::getInstance()->getVehicleControl().getVType(myAutomatedTypeID)->getColor();
         if (myState == AUTOMATED || myState == PREPARING_TOC || myState == MRM) {
             switchHolderType(value);
         }
@@ -643,7 +714,7 @@ MSDevice_ToC::_2ToCState(const std::string& str) {
     } else if (str == "RECOVERING") {
         return RECOVERING;
     } else {
-        WRITE_WARNING("Unknown ToCState '"+str+"'");
+        WRITE_WARNING("Unknown ToCState '" + str + "'");
         return UNDEFINED;
     }
 }
@@ -664,10 +735,38 @@ MSDevice_ToC::_2string(ToCState state) {
     } else if (state == RECOVERING) {
         return "RECOVERING";
     } else {
-        WRITE_WARNING("Unknown ToCState '"+toString(state)+"'");
+        WRITE_WARNING("Unknown ToCState '" + toString(state) + "'");
         return toString(state);
     }
 }
+
+
+void
+MSDevice_ToC::writeOutput() {
+    if (!generatesOutput()) {
+        assert(myEvents.empty());
+        return;
+    }
+    while(!myEvents.empty()) {
+        std::pair<SUMOTime, std::string> e = myEvents.front();
+        myOutputFile->openTag(e.second);
+        myOutputFile->writeAttr("id", myHolder.getID()).writeAttr("t", STEPS2TIME(e.first));
+        myOutputFile->closeTag();
+        myEvents.pop();
+    }
+}
+
+
+void
+MSDevice_ToC::cleanup() {
+    // Close xml bodies for all existing files
+    // TODO: Check if required
+    for (auto& fn : createdOutputFiles) {
+        OutputDevice* file = &OutputDevice::getDevice(fn);
+        file->closeTag();
+    }
+}
+
 
 /****************************************************************************/
 

@@ -19,16 +19,13 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/gui/images/GUITexturesHelper.h>
 #include <utils/gui/images/GUIIconSubSys.h>
 #include <utils/gui/images/GUITextureSubSys.h>
 #include <utils/gui/div/GUIGlobalSelection.h>
+#include <netedit/frames/GNESelectorFrame.h>
 #include <netedit/GNENet.h>
 #include <netedit/GNEViewNet.h>
 #include <netedit/GNEViewParent.h>
@@ -40,12 +37,10 @@
 // method definitions
 // ===========================================================================
 
-GNEShape::GNEShape(GNENet* net, SumoXMLTag tag, GUIIcon icon, bool movementBlocked, bool shapeBlocked) :
-    GNEAttributeCarrier(tag, icon),
+GNEShape::GNEShape(GNENet* net, SumoXMLTag tag, bool movementBlocked) :
+    GNEAttributeCarrier(tag),
     myNet(net),
-    myBlockMovement(movementBlocked),
-    myBlockShape(shapeBlocked),
-    mySelected(false) {
+    myBlockMovement(movementBlocked) {
 }
 
 
@@ -64,14 +59,8 @@ GNEShape::isMovementBlocked() const {
 }
 
 
-bool
-GNEShape::isShapeBlocked() const {
-    return myBlockShape;
-}
-
-
 void
-GNEShape::drawLockIcon(const Position& pos, double layer, double size) const {
+GNEShape::draw(const Position& pos, double layer, double size) const {
     if (myNet->getViewNet()->showLockIcon()) {
         // Start pushing matrix
         glPushMatrix();
@@ -105,35 +94,59 @@ GNEShape::drawLockIcon(const Position& pos, double layer, double size) const {
 }
 
 
-void 
+void
 GNEShape::selectAttributeCarrier(bool changeFlag) {
-    if(!myNet) {
+    if (!myNet) {
         throw ProcessError("Net cannot be nullptr");
     } else {
-        gSelected.select(dynamic_cast<GUIGlObject*>(this)->getGlID());
-        if(changeFlag) {
+        GUIGlObject* object = dynamic_cast<GUIGlObject*>(this);
+        gSelected.select(object->getGlID());
+        // add object into list of selected objects
+        myNet->getViewNet()->getViewParent()->getSelectorFrame()->getLockGLObjectTypes()->addedLockedObject(object->getType());
+        if (changeFlag) {
             mySelected = true;
         }
-    } 
+    }
 }
 
 
-void 
+void
 GNEShape::unselectAttributeCarrier(bool changeFlag) {
-    if(!myNet) {
+    if (!myNet) {
         throw ProcessError("Net cannot be nullptr");
     } else {
-        gSelected.deselect(dynamic_cast<GUIGlObject*>(this)->getGlID());
-        if(changeFlag) {
+        GUIGlObject* object = dynamic_cast<GUIGlObject*>(this);
+        gSelected.deselect(object->getGlID());
+        // remove object of list of selected objects
+        myNet->getViewNet()->getViewParent()->getSelectorFrame()->getLockGLObjectTypes()->removeLockedObject(object->getType());
+        if (changeFlag) {
             mySelected = false;
         }
-    } 
+    }
 }
 
 
-bool 
+bool
 GNEShape::isAttributeCarrierSelected() const {
     return mySelected;
 }
+
+
+std::string
+GNEShape::getPopUpID() const {
+    return getTagStr() + ": " + getID();
+}
+
+
+std::string
+GNEShape::getHierarchyName() const {
+    return getTagStr();
+}
+
+
+void
+GNEShape::mouseOverObject(const GUIVisualizationSettings&) const {
+}
+
 
 /****************************************************************************/

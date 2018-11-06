@@ -17,11 +17,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <utils/xml/SUMOXMLDefinitions.h>
@@ -47,7 +43,7 @@
 ShapeHandler::ShapeHandler(const std::string& file, ShapeContainer& sc) :
     SUMOSAXHandler(file), myShapeContainer(sc),
     myPrefix(""), myDefaultColor(RGBColor::RED), myDefaultLayer(), myDefaultFill(false),
-    myLastParameterised(0) {
+    myLastParameterised(nullptr) {
 }
 
 
@@ -63,16 +59,29 @@ ShapeHandler::myStartElement(int element, const SUMOSAXAttributes& attrs) {
                 addPoly(attrs, false, false);
                 break;
             case SUMO_TAG_POI:
-                myDefaultLayer = (double)GLO_POI;
+                myDefaultLayer = Shape::DEFAULT_LAYER_POI;
                 addPOI(attrs, false, false);
                 break;
             case SUMO_TAG_PARAM:
-                if (myLastParameterised != 0) {
+                if (myLastParameterised != nullptr) {
                     bool ok = true;
-                    const std::string key = attrs.get<std::string>(SUMO_ATTR_KEY, 0, ok);
-                    // circumventing empty string test
-                    const std::string val = attrs.hasAttribute(SUMO_ATTR_VALUE) ? attrs.getString(SUMO_ATTR_VALUE) : "";
-                    myLastParameterised->setParameter(key, val);
+                    const std::string key = attrs.get<std::string>(SUMO_ATTR_KEY, nullptr, ok);
+                    // continue if key awas sucesfully loaded
+                    if (ok) {
+                        // circumventing empty string value
+                        const std::string val = attrs.hasAttribute(SUMO_ATTR_VALUE) ? attrs.getString(SUMO_ATTR_VALUE) : "";
+                        // show warnings if values are invalid
+                        if (key.empty()) {
+                            WRITE_WARNING("Error parsing key from shape generic parameter. Key cannot be empty");
+                        } else if (!SUMOXMLDefinitions::isValidGenericParameterKey(key)) {
+                            WRITE_WARNING("Error parsing key from shape generic parameter. Key contains invalid characters");
+                        } else if (!SUMOXMLDefinitions::isValidGenericParameterValue(val)) {
+                            WRITE_WARNING("Error parsing value from shape generic parameter. Value contains invalid characters");
+                        } else {
+                            WRITE_DEBUG("Inserting generic parameter '" + key + "|" + val + "' into shape.");
+                            myLastParameterised->setParameter(key, val);
+                        }
+                    }
                 }
             default:
                 break;
@@ -86,7 +95,7 @@ ShapeHandler::myStartElement(int element, const SUMOSAXAttributes& attrs) {
 void
 ShapeHandler::myEndElement(int element) {
     if (element != SUMO_TAG_PARAM) {
-        myLastParameterised = 0;
+        myLastParameterised = nullptr;
     }
 }
 
@@ -94,7 +103,7 @@ void
 ShapeHandler::addPOI(const SUMOSAXAttributes& attrs, const bool ignorePruning, const bool useProcessing) {
     bool ok = true;
     const double INVALID_POSITION(-1000000);
-    const std::string id = myPrefix + attrs.get<std::string>(SUMO_ATTR_ID, 0, ok);
+    const std::string id = myPrefix + attrs.get<std::string>(SUMO_ATTR_ID, nullptr, ok);
     double x = attrs.getOpt<double>(SUMO_ATTR_X, id.c_str(), ok, INVALID_POSITION);
     const double y = attrs.getOpt<double>(SUMO_ATTR_Y, id.c_str(), ok, INVALID_POSITION);
     double lon = attrs.getOpt<double>(SUMO_ATTR_LON, id.c_str(), ok, INVALID_POSITION);
@@ -125,6 +134,7 @@ ShapeHandler::addPOI(const SUMOSAXAttributes& attrs, const bool ignorePruning, c
         }
     }
     Position pos(x, y);
+    bool useGeo = false;
     if (x == INVALID_POSITION || y == INVALID_POSITION) {
         // try computing x,y from lane,pos
         if (laneID != "") {
@@ -139,6 +149,7 @@ ShapeHandler::addPOI(const SUMOSAXAttributes& attrs, const bool ignorePruning, c
                 return;
             }
             pos.set(lon, lat);
+            useGeo = true;
             bool success = true;
             if (useProcessing) {
                 success = GeoConvHelper::getProcessing().x2cartesian(pos);
@@ -151,7 +162,7 @@ ShapeHandler::addPOI(const SUMOSAXAttributes& attrs, const bool ignorePruning, c
             }
         }
     }
-    if (!myShapeContainer.addPOI(id, type, color, pos, gch.usingGeoProjection(), laneID, lanePos, lanePosLat, layer, angle, imgFile, relativePath, width, height, ignorePruning)) {
+    if (!myShapeContainer.addPOI(id, type, color, pos, useGeo, laneID, lanePos, lanePosLat, layer, angle, imgFile, relativePath, width, height, ignorePruning)) {
         WRITE_ERROR("PoI '" + id + "' already exists.");
     }
     myLastParameterised = myShapeContainer.getPOIs().get(id);
@@ -166,13 +177,14 @@ ShapeHandler::addPOI(const SUMOSAXAttributes& attrs, const bool ignorePruning, c
 void
 ShapeHandler::addPoly(const SUMOSAXAttributes& attrs, const bool ignorePruning, const bool useProcessing) {
     bool ok = true;
-    const std::string id = myPrefix + attrs.get<std::string>(SUMO_ATTR_ID, 0, ok);
+    const std::string id = myPrefix + attrs.get<std::string>(SUMO_ATTR_ID, nullptr, ok);
     // get the id, report an error if not given or empty...
     if (!ok) {
         return;
     }
     const double layer = attrs.getOpt<double>(SUMO_ATTR_LAYER, id.c_str(), ok, myDefaultLayer);
     const bool fill = attrs.getOpt<bool>(SUMO_ATTR_FILL, id.c_str(), ok, myDefaultFill);
+    const double lineWidth = attrs.getOpt<double>(SUMO_ATTR_LINEWIDTH, id.c_str(), ok, 1);
     const std::string type = attrs.getOpt<std::string>(SUMO_ATTR_TYPE, id.c_str(), ok, Shape::DEFAULT_TYPE);
     const RGBColor color = attrs.hasAttribute(SUMO_ATTR_COLOR) ? attrs.get<RGBColor>(SUMO_ATTR_COLOR, id.c_str(), ok) : myDefaultColor;
     PositionVector shape = attrs.get<PositionVector>(SUMO_ATTR_SHAPE, id.c_str(), ok);
@@ -203,7 +215,7 @@ ShapeHandler::addPoly(const SUMOSAXAttributes& attrs, const bool ignorePruning, 
         WRITE_ERROR("Polygon's shape cannot be empty.");
         return;
     }
-    if (!myShapeContainer.addPolygon(id, type, color, layer, angle, imgFile, relativePath, shape, geo, fill, ignorePruning)) {
+    if (!myShapeContainer.addPolygon(id, type, color, layer, angle, imgFile, relativePath, shape, geo, fill, lineWidth, ignorePruning)) {
         WRITE_ERROR("Polygon '" + id + "' already exists.");
     }
     myLastParameterised = myShapeContainer.getPolygons().get(id);

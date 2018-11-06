@@ -20,13 +20,10 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/common/TplConvert.h>
+#include <utils/common/StringUtils.h>
 #include <utils/options/OptionsCont.h>
 #include <utils/iodevices/OutputDevice.h>
 #include <utils/vehicle/SUMOVehicle.h>
@@ -37,6 +34,11 @@
 #include "MSDevice_Tripinfo.h"
 #include "MSDevice_FCD.h"
 
+// ===========================================================================
+// static members
+// ===========================================================================
+std::set<const MSEdge*> MSDevice_FCD::myEdgeFilter;
+bool MSDevice_FCD::myEdgeFilterInitialized(false);
 
 // ===========================================================================
 // method definitions
@@ -55,11 +57,14 @@ MSDevice_FCD::insertOptions(OptionsCont& oc) {
 
 
 void
-MSDevice_FCD::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into) {
+MSDevice_FCD::buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into) {
     OptionsCont& oc = OptionsCont::getOptions();
     if (equippedByDefaultAssignmentOptions(oc, "fcd", v, oc.isSet("fcd-output"))) {
         MSDevice_FCD* device = new MSDevice_FCD(v, "fcd_" + v.getID());
         into.push_back(device);
+        if (!myEdgeFilterInitialized) {
+            initEdgeFilter();
+        }
     }
 }
 
@@ -68,13 +73,41 @@ MSDevice_FCD::buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into) 
 // MSDevice_FCD-methods
 // ---------------------------------------------------------------------------
 MSDevice_FCD::MSDevice_FCD(SUMOVehicle& holder, const std::string& id) :
-    MSDevice(holder, id) {
+    MSVehicleDevice(holder, id) {
 }
 
 
 MSDevice_FCD::~MSDevice_FCD() {
 }
 
+
+void
+MSDevice_FCD::initEdgeFilter() {
+    myEdgeFilterInitialized = true;
+    if (OptionsCont::getOptions().isSet("fcd-output.filter-edges.input-file")) {
+        const std::string file = OptionsCont::getOptions().getString("fcd-output.filter-edges.input-file");
+        std::ifstream strm(file.c_str());
+        if (!strm.good()) {
+            throw ProcessError("Could not load names of edges for filtering fcd-output from '" + file + "'.");
+        }
+        while (strm.good()) {
+            std::string name;
+            strm >> name;
+            // maybe we're loading an edge-selection
+            if (StringUtils::startsWith(name, "edge:")) {
+                name = name.substr(5);
+            }
+            myEdgeFilter.insert(MSEdge::dictionary(name));
+        }
+    }
+}
+
+
+void
+MSDevice_FCD::cleanup() {
+    myEdgeFilter.clear();
+    myEdgeFilterInitialized = false;
+}
 
 /****************************************************************************/
 

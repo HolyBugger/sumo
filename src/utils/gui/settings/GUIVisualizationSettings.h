@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <vector>
@@ -52,7 +48,7 @@ class GUIVisualizationSettings;
 // cannot declare this as inner class because it needs to be used in forward
 // declaration (@todo fix inclusion order by removing references to guisim!)
 struct GUIVisualizationTextSettings {
-    GUIVisualizationTextSettings(bool _show, double _size, RGBColor _color, bool _constSize=true) :
+    GUIVisualizationTextSettings(bool _show, double _size, RGBColor _color, bool _constSize = true) :
         show(_show), size(_size), color(_color), constSize(_constSize) {}
 
     bool show;
@@ -77,7 +73,7 @@ struct GUIVisualizationTextSettings {
         dev.writeAttr(name + "_constantSize", constSize);
     }
 
-    double scaledSize(double scale, double constFactor=0.1) const {
+    double scaledSize(double scale, double constFactor = 0.1) const {
         return constSize ? size / scale : size * constFactor;
     }
 };
@@ -275,6 +271,8 @@ public:
     /// @name shapes visualization settings
     //@{
 
+    /// @brief The POI colorer
+    GUIColorer poiColorer;
     // Setting bundles for controling the size of the drawn POIs
     GUIVisualizationSizeSettings poiSize;
     // Setting bundles for optional drawing poi names
@@ -282,6 +280,8 @@ public:
     // Setting bundles for optional drawing poi types
     GUIVisualizationTextSettings poiType;
 
+    /// @brief The polygon colorer
+    GUIColorer polyColorer;
     // Setting bundles for controling the size of the drawn polygons
     GUIVisualizationSizeSettings polySize;
     // Setting bundles for optional drawing polygon names
@@ -304,6 +304,13 @@ public:
 
     /// @brief the current NETEDIT additional mode (temporary)
     int editAdditionalMode;
+
+    /// @brief NETEDIT special colors
+    RGBColor selectionColor;
+    RGBColor selectedEdgeColor;
+    RGBColor selectedLaneColor;
+    RGBColor selectedConnectionColor;
+    RGBColor selectedAdditionalColor;
 
     /// @brief the current selection scaling in NETEDIT (temporary)
     double selectionScale;
@@ -366,6 +373,15 @@ public:
 
     /// @brief color for chargingStation during charging
     static const RGBColor SUMO_color_chargingStation_charge;
+
+    /// @brief color for E1 detectors
+    static const RGBColor SUMO_color_E1;
+
+    /// @brief color for E1 Instant detectors
+    static const RGBColor SUMO_color_E1Instant;
+
+    /// @brief color for E2 detectors
+    static const RGBColor SUMO_color_E2;
 
     /// @brief color for Entrys
     static const RGBColor SUMO_color_E3Entry;

@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <utility>
@@ -45,7 +41,7 @@
 // ===========================================================================
 ODDistrictHandler::ODDistrictHandler(ODDistrictCont& cont,
                                      const std::string& file)
-    : SUMOSAXHandler(file), myContainer(cont), myCurrentDistrict(0) {}
+    : SUMOSAXHandler(file), myContainer(cont), myCurrentDistrict(nullptr) {}
 
 
 ODDistrictHandler::~ODDistrictHandler() {}
@@ -80,10 +76,10 @@ ODDistrictHandler::myEndElement(int element) {
 
 void
 ODDistrictHandler::openDistrict(const SUMOSAXAttributes& attrs) {
-    myCurrentDistrict = 0;
+    myCurrentDistrict = nullptr;
     // get the id, report an error if not given or empty...
     bool ok = true;
-    std::string id = attrs.get<std::string>(SUMO_ATTR_ID, 0, ok);
+    std::string id = attrs.get<std::string>(SUMO_ATTR_ID, nullptr, ok);
     if (!ok) {
         return;
     }
@@ -120,12 +116,12 @@ ODDistrictHandler::addSink(const SUMOSAXAttributes& attrs) {
 std::pair<std::string, double>
 ODDistrictHandler::parseTAZ(const SUMOSAXAttributes& attrs) {
     // check the current district first
-    if (myCurrentDistrict == 0) {
+    if (myCurrentDistrict == nullptr) {
         return std::pair<std::string, double>("", -1);
     }
     // get the id, report an error if not given or empty...
     bool ok = true;
-    std::string id = attrs.get<std::string>(SUMO_ATTR_ID, 0, ok);
+    std::string id = attrs.get<std::string>(SUMO_ATTR_ID, nullptr, ok);
     if (!ok) {
         return std::pair<std::string, double>("", -1);
     }
@@ -144,7 +140,7 @@ ODDistrictHandler::parseTAZ(const SUMOSAXAttributes& attrs) {
 
 void
 ODDistrictHandler::closeDistrict() {
-    if (myCurrentDistrict != 0) {
+    if (myCurrentDistrict != nullptr) {
         myContainer.add(myCurrentDistrict->getID(), myCurrentDistrict);
     }
 }

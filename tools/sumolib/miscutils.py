@@ -30,6 +30,13 @@ from collections import defaultdict
 # http://www.python.org/dev/peps/pep-0326/
 
 
+def round(value):  # to round in Python 3 like in Python 2
+    if value < 0:
+        return math.ceil(value - 0.5)
+    else:
+        return math.floor(value + 0.5)
+
+
 class _ExtremeType(object):
 
     def __init__(self, isMax, rep):
@@ -57,6 +64,7 @@ class _ExtremeType(object):
 
     def __repr__(self):
         return self._rep
+
 
 uMax = _ExtremeType(True, "uMax")
 uMin = _ExtremeType(False, "uMin")
@@ -249,16 +257,20 @@ class Colorgen:
 
     def __init__(self, hsv):
         self.hsv = hsv
+        self.cycle = [random.randint(0, 255) for x in self.hsv]
 
-    def get_value(self, opt):
+    def get_value(self, opt, index):
         if opt == 'random':
             return random.random()
+        elif opt == 'cycle':
+            self.cycle[index] = (self.cycle[index] + 24) % 255
+            return self.cycle[index] / 255.0
         else:
             return float(opt)
 
     def floatTuple(self):
         """return color as a tuple of floats each in [0,1]"""
-        return colorsys.hsv_to_rgb(*map(self.get_value, self.hsv))
+        return colorsys.hsv_to_rgb(*[self.get_value(o, i) for i, o in enumerate(self.hsv)])
 
     def byteTuple(self):
         """return color as a tuple of bytes each in [0,255]"""

@@ -19,11 +19,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 //
 #include <cmath>
 #include <algorithm>
@@ -40,7 +36,7 @@
 // ===========================================================================
 // static members
 // ===========================================================================
-MSCModel_NonInteracting* MSCModel_NonInteracting::myModel(0);
+MSCModel_NonInteracting* MSCModel_NonInteracting::myModel(nullptr);
 
 
 // named constants
@@ -64,7 +60,7 @@ MSCModel_NonInteracting::~MSCModel_NonInteracting() {
 
 MSCModel_NonInteracting*
 MSCModel_NonInteracting::getModel() {
-    if (myModel == 0) {
+    if (myModel == nullptr) {
         MSNet* net = MSNet::getInstance();
         myModel = new MSCModel_NonInteracting(net);
     }
@@ -74,7 +70,7 @@ MSCModel_NonInteracting::getModel() {
 CState*
 MSCModel_NonInteracting::add(MSTransportable* container, MSContainer::MSContainerStage_Tranship* stage, SUMOTime now) {
     CState* state = new CState();
-    const SUMOTime firstEdgeDuration = state->computeTranshipTime(0, *stage, now);
+    const SUMOTime firstEdgeDuration = state->computeTranshipTime(nullptr, *stage, now);
     myNet->getBeginOfTimestepEvents()->addEvent(new MoveToNextEdge(container, *stage), now + firstEdgeDuration);
     return state;
 }
@@ -82,9 +78,9 @@ MSCModel_NonInteracting::add(MSTransportable* container, MSContainer::MSContaine
 
 void
 MSCModel_NonInteracting::cleanup() {
-    if (myModel != 0) {
+    if (myModel != nullptr) {
         delete myModel;
-        myModel = 0;
+        myModel = nullptr;
     }
 }
 

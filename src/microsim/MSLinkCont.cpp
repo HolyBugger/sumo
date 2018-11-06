@@ -20,11 +20,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include "MSLinkCont.h"
 #include "MSLane.h"
@@ -41,14 +37,14 @@ MSLinkContHelper::getInternalFollowingEdge(const MSLane* fromLane,
     for (MSLinkCont::const_iterator j = lc.begin(); j != lc.end(); j++) {
         MSLink* link = *j;
         if (&link->getLane()->getEdge() == followerAfterInternal) {
-            if (link->getViaLane() != 0) {
+            if (link->getViaLane() != nullptr) {
                 return &link->getViaLane()->getEdge();
             } else {
-                return 0; // network without internal links
+                return nullptr; // network without internal links
             }
         }
     }
-    return 0;
+    return nullptr;
 }
 
 
@@ -60,14 +56,14 @@ MSLinkContHelper::getInternalFollowingLane(const MSLane* fromLane,
     for (MSLinkCont::const_iterator j = lc.begin(); j != lc.end(); j++) {
         MSLink* link = *j;
         if (link->getLane() == followerAfterInternal) {
-            if (link->getViaLane() != 0) {
+            if (link->getViaLane() != nullptr) {
                 return link->getViaLane();
             } else {
-                return 0; // network without internal links
+                return nullptr; // network without internal links
             }
         }
     }
-    return 0;
+    return nullptr;
 }
 
 
@@ -82,7 +78,7 @@ MSLinkContHelper::getConnectingLink(const MSLane& from, const MSLane& to) {
             return link;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 

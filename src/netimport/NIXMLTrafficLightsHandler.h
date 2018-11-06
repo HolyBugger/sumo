@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/xml/SUMOSAXHandler.h>
 #include <netbuild/NBConnection.h>
@@ -56,7 +52,7 @@ public:
     /** @brief Constructor
      * @param[in] ec The traffic light container into which to load logics
      */
-    NIXMLTrafficLightsHandler(NBTrafficLightLogicCont& tlCont, NBEdgeCont& ec);
+    NIXMLTrafficLightsHandler(NBTrafficLightLogicCont& tlCont, NBEdgeCont& ec, bool ignoreUnknown=false);
 
 
     /// @brief Destructor
@@ -119,6 +115,8 @@ private:
     /// parses a lane index and verifies its correctness
     int retrieveLaneIndex(const SUMOSAXAttributes& attrs, SumoXMLAttr attr, NBEdge* edge, bool& ok);
 
+    /// @brief whether definitions for unknown traffic lights shall be silently ignored
+    bool myIgnoreUnknown;
 
 
 private:

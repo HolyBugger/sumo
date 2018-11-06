@@ -23,13 +23,9 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 #include <microsim/MSNet.h>
 #include <microsim/MSVehicle.h>
 #include <utils/common/SUMOTime.h>
@@ -54,7 +50,7 @@ class MSRoute;
  *
  * @see MSDevice
  */
-class MSDevice_Vehroutes : public MSDevice {
+class MSDevice_Vehroutes : public MSVehicleDevice {
 public:
     /** @brief Static intialization
      */
@@ -71,7 +67,7 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[filled] into The vector to store the built device in
      */
-    static MSDevice_Vehroutes* buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into, int maxRoutes = std::numeric_limits<int>::max());
+    static MSDevice_Vehroutes* buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into, int maxRoutes = std::numeric_limits<int>::max());
 
 
     /// @brief generate vehroute output for vehicles which are still in the network
@@ -117,7 +113,7 @@ public:
         return "vehroute";
     }
 
-    void stopEnded(const MSVehicle::Stop& stop);
+    void stopEnded(const SUMOVehicleParameter::Stop& stop);
 
     /** @brief Called on writing vehroutes output
      *
@@ -174,7 +170,7 @@ private:
 
     /** @brief Called on route change
      */
-    void addRoute();
+    void addRoute(const std::string& info);
 
 
 
@@ -187,6 +183,9 @@ private:
 
     /// @brief A shortcut for the Option "vehroute-output.dua"
     static bool myDUAStyle;
+
+    /// @brief A shortcut for the Option "vehroute-output.costs"
+    static bool myWriteCosts;
 
     /// @brief A shortcut for the Option "vehroute-output.sorted"
     static bool mySorted;
@@ -213,10 +212,10 @@ private:
          * @param[in] vehicle The vehicle which changed its state
          * @param[in] to The state the vehicle has changed to
          */
-        void vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to);
+        void vehicleStateChanged(const SUMOVehicle* const vehicle, MSNet::VehicleState to, const std::string& info = "");
 
         /// @brief A map for internal notification
-        std::map<const SUMOVehicle*, MSDevice_Vehroutes*, SUMOVehicle::ComparatorIdLess> myDevices;
+        std::map<const SUMOVehicle*, MSDevice_Vehroutes*, ComparatorIdLess> myDevices;
 
     };
 
@@ -247,8 +246,8 @@ private:
          * @param[in] time_ The time the route was replaced
          * @param[in] route_ The prior route
          */
-        RouteReplaceInfo(const MSEdge* const edge_, const SUMOTime time_, const MSRoute* const route_)
-            : edge(edge_), time(time_), route(route_) {}
+        RouteReplaceInfo(const MSEdge* const edge_, const SUMOTime time_, const MSRoute* const route_, const std::string& info_)
+            : edge(edge_), time(time_), route(route_), info(info_) {}
 
         /// @brief Destructor
         ~RouteReplaceInfo() { }
@@ -261,6 +260,9 @@ private:
 
         /// @brief The prior route
         const MSRoute* route;
+
+        /// @brief Information regarding rerouting
+        std::string info;
 
     };
 

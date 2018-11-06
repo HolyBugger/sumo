@@ -24,11 +24,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <fx.h>
 
@@ -132,6 +128,8 @@ enum {
     MID_EDIT_BREAKPOINTS,
     /// @brief Open in netedit
     MID_NETEDIT,
+    /// @brief Open in SUMO GUI
+    MID_SUMOGUI,
     /// @}
 
 
@@ -495,8 +493,12 @@ enum {
     MID_GNE_SETMODE_ADDITIONAL,
     /// @brief mode for editing crossing
     MID_GNE_SETMODE_CROSSING,
+    /// @brief mode for editing TAZ
+    MID_GNE_SETMODE_TAZ,
     /// @brief mode for creating polygons
     MID_GNE_SETMODE_POLYGON,
+    /// @brief mode for editing connection prohibitions
+    MID_GNE_SETMODE_PROHIBITION,
     /// @}
 
 
@@ -527,8 +529,14 @@ enum {
     /// @name GNEFrame messages
     /// @{
     // MID_GNE_WIZARD,
+    /// @brief attribute added
+    MID_GNE_ADD_ATTRIBUTE,
+    /// @brief attribute removed
+    MID_GNE_REMOVE_ATTRIBUTE,
     /// @brief attribute edited
     MID_GNE_SET_ATTRIBUTE,
+    /// @brief create something
+    MID_GNE_CREATE,
     /// @brief used to select a type of element in a combo box
     MID_GNE_SET_TYPE,
     /// @brief text attribute edited
@@ -551,6 +559,12 @@ enum {
     MID_GNE_SELECTORFRAME_PROCESSSTRING,
     /// @brief changes the visual scaling of selected items
     MID_GNE_SELECTORFRAME_SELECTSCALE,
+    /// @brief start drawing polygon
+    MID_GNE_STARTDRAWING,
+    /// @brief stop drawing polygon
+    MID_GNE_STOPDRAWING,
+    /// @brief abort drawing polygon
+    MID_GNE_ABORTDRAWING,
     /// @}
 
 
@@ -635,7 +649,6 @@ enum {
     MID_GNE_CROSSINGFRAME_CREATECROSSING,
     /// @}
 
-
     /// @name GNEAdditionalFrame messages
     /// @{
 
@@ -653,18 +666,24 @@ enum {
     MID_GNE_ADDITIONALFRAME_CLEARSELECTION,
     /// @brief invert selection of eleents
     MID_GNE_ADDITIONALFRAME_INVERTSELECTION,
+    /// @brief start selection of consecutive egdes/lanes
+    MID_GNE_ADDITIONALFRAME_STARTSELECTION,
+    /// @brief stop selection of consecutive egdes/lanes
+    MID_GNE_ADDITIONALFRAME_STOPSELECTION,
+    /// @brief abort selection of consecutive egdes/lanes
+    MID_GNE_ADDITIONALFRAME_ABORTSELECTION,
     /// @}
 
 
-    /// @name GNEPolygonFrame messages
+    /// @name GNEProhibitionFrame messages
     /// @{
 
-    /// @brief start drawing polygon
-    MID_GNE_POLYGONFRAME_STARTDRAWING,
-    /// @brief stop drawing polygon
-    MID_GNE_POLYGONFRAME_STOPDRAWING,
+    /// @brief select prohibiting connection
+    MID_GNE_PROHIBITIONFRAME_SELECTPROHIBITING,
+    /// @brief select connections to be prohibited
+    MID_GNE_PROHIBITIONFRAME_SELECTPROHIBITED,
     /// @brief abort drawing polygon
-    MID_GNE_POLYGONFRAME_ABORTDRAWING,
+    MID_GNE_PROHIBITIONFRAME_ABORTDRAWING,
     /// @}
 
 
@@ -707,6 +726,8 @@ enum {
     MID_GNE_JUNCTION_SPLIT,
     /// @brief edit junction shape
     MID_GNE_JUNCTION_EDIT_SHAPE,
+    /// @brief reset junction shape
+    MID_GNE_JUNCTION_RESET_SHAPE,
     /// @}
 
 
@@ -754,24 +775,32 @@ enum {
 
     /// @brief duplicate a lane
     MID_GNE_LANE_DUPLICATE,
+    /// @brief remove greenVerge
+    MID_GNE_LANE_RESET_CUSTOMSHAPE,
     /// @brief transform lane to sidewalk
     MID_GNE_LANE_TRANSFORM_SIDEWALK,
     /// @brief transform lane to bikelane
     MID_GNE_LANE_TRANSFORM_BIKE,
     /// @brief transform lane to busLane
     MID_GNE_LANE_TRANSFORM_BUS,
+    /// @brief transform lane to greenVerge
+    MID_GNE_LANE_TRANSFORM_GREENVERGE,
     /// @brief add sidewalk
     MID_GNE_LANE_ADD_SIDEWALK,
     /// @brief add bikelane
     MID_GNE_LANE_ADD_BIKE,
     /// @brief add busLane
     MID_GNE_LANE_ADD_BUS,
+    /// @brief add greenVerge
+    MID_GNE_LANE_ADD_GREENVERGE,
     /// @brief remove sidewalk
     MID_GNE_LANE_REMOVE_SIDEWALK,
     /// @brief remove bikelane
     MID_GNE_LANE_REMOVE_BIKE,
     /// @brief remove busLane
     MID_GNE_LANE_REMOVE_BUS,
+    /// @brief remove greenVerge
+    MID_GNE_LANE_REMOVE_GREENVERGE,
     /// @}
 
 
@@ -814,6 +843,8 @@ enum {
     MID_GNE_REROUTEDIALOG_TABLE_PARKINGAREAREROUTE,
     /// @brief add interval
     MID_GNE_REROUTEDIALOG_ADD_INTERVAL,
+    /// @brief sort rerouter intervals
+    MID_GNE_REROUTEDIALOG_SORT_INTERVAL,
     /// @brief add closing lane reroute
     MID_GNE_REROUTEDIALOG_ADD_CLOSINGLANEREROUTE,
     /// @brief add closing reroute
@@ -866,6 +897,19 @@ enum {
 
     /// @brief FixStoppingPlaces dialog
     MID_GNE_FIXSTOPPINGPLACES_CHANGE,
+    /// @}
+
+    /// @name Generic Parameters Dialog messages
+    /// @{
+
+    /// @brief Generic parameters dialog load
+    MID_GNE_GENERICPARAMETERS_LOAD,
+    /// @brief Generic parameters dialog save
+    MID_GNE_GENERICPARAMETERS_SAVE,
+    /// @brief Generic parameters dialog clear
+    MID_GNE_GENERICPARAMETERS_CLEAR,
+    /// @brief Generic parameters dialog sort
+    MID_GNE_GENERICPARAMETERS_SORT,
     /// @}
 
 

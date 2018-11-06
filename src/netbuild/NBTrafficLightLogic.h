@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <vector>
 #include <string>
@@ -236,10 +232,6 @@ private:
 
     /// @brief The algorithm type for the traffic light
     TrafficLightType myType;
-
-    /// @brief all allowed characters for phase state (see SUMOXMLDefinitions)
-    static const char allowedStatesInitializer[];
-    static const std::string ALLOWED_STATES;
 
 private:
     /// @brief Invalidated assignment operator

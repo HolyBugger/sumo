@@ -19,11 +19,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/xml/SUMORouteHandler.h>
 #include <utils/xml/SUMOSAXReader.h>
@@ -35,7 +31,7 @@
 // method definitions
 // ===========================================================================
 SUMORouteLoader::SUMORouteLoader(SUMORouteHandler* handler)
-    : myParser(0), myMoreAvailable(true), myHandler(handler) {
+    : myParser(nullptr), myMoreAvailable(true), myHandler(handler) {
     myParser = XMLSubSys::getSAXReader(*myHandler);
     if (!myParser->parseFirst(myHandler->getFileName())) {
         throw ProcessError("Can not read XML-file '" + myHandler->getFileName() + "'.");

@@ -21,19 +21,16 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <fx.h>
 #include <cassert>
 #include "GUIIcons.h"
 #include "GUIIconSubSys.h"
 
-#include "dlr.xpm"
-#include "sumo.xpm"
+#include "sumo_icon64.xpm"
+#include "sumo_icon16.xpm"
+#include "sumo_logo.xpm"
 
 #include "empty.xpm"
 #include "filesave.xpm"
@@ -44,7 +41,6 @@
 #include "stop.xpm"
 #include "step.xpm"
 #include "new_window.xpm"
-#include "document.xpm"
 
 #include "app_tracker.xpm"
 #include "app_finder.xpm"
@@ -117,7 +113,8 @@
 
 #include "undo.xpm"
 #include "redo.xpm"
-#include "netedit.xpm"
+#include "netedit_icon64.xpm"
+#include "netedit_icon16.xpm"
 #include "lock.xpm"
 #include "add.xpm"
 #include "remove.xpm"
@@ -126,6 +123,7 @@
 #include "lanebike.xpm"
 #include "lanebus.xpm"
 #include "lanepedestrian.xpm"
+#include "lanegreenverge.xpm"
 
 #include "cut.xpm"
 #include "ext.xpm"
@@ -134,12 +132,14 @@
 #include "modeconnection.xpm"
 #include "modecreateedge.xpm"
 #include "modecrossing.xpm"
+#include "modetaz.xpm"
 #include "modedelete.xpm"
 #include "modeinspect.xpm"
 #include "modemove.xpm"
 #include "modeselect.xpm"
 #include "modetrafficlight.xpm"
 #include "modepolygon.xpm"
+#include "modeprohibition.xpm"
 
 #include "computejunctions.xpm"
 #include "cleanjunctions.xpm"
@@ -154,11 +154,13 @@
 #include "crossing.xpm"
 
 #include "busstop.xpm"
+#include "access.xpm"
 #include "chargingstation.xpm"
 #include "containerstop.xpm"
 #include "parkingarea.xpm"
 #include "parkingspace.xpm"
 #include "e1.xpm"
+#include "e1instant.xpm"
 #include "e2.xpm"
 #include "e3.xpm"
 #include "e3entry.xpm"
@@ -168,6 +170,19 @@
 #include "vaporizer.xpm"
 #include "variablespeedsign.xpm"
 #include "calibrator.xpm"
+#include "rerouterinterval.xpm"
+#include "vssstep.xpm"
+#include "closingreroute.xpm"
+#include "closinglanereroute.xpm"
+#include "destprobreroute.xpm"
+#include "parkingzonereroute.xpm"
+#include "routeprobreroute.xpm"
+#include "taz.xpm"
+#include "tazedge.xpm"
+
+#include "flow.xpm"
+#include "route.xpm"
+#include "vtype.xpm"
 
 #include "vclass_ignoring.xpm"
 #include "vclass_private.xpm"
@@ -212,7 +227,7 @@
 // static member variable definitions
 // ===========================================================================
 
-GUIIconSubSys* GUIIconSubSys::myInstance = 0;
+GUIIconSubSys* GUIIconSubSys::myInstance = nullptr;
 
 // ===========================================================================
 // member definitions
@@ -220,9 +235,9 @@ GUIIconSubSys* GUIIconSubSys::myInstance = 0;
 
 GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     // build icons
-    myIcons[ICON_APP] = new FXXPMIcon(a, document_xpm);
-    myIcons[ICON_DLR] = new FXXPMIcon(a, dlr_xpm);
-    myIcons[ICON_SUMO] = new FXXPMIcon(a, sumo_xpm);
+    myIcons[ICON_SUMO] = new FXXPMIcon(a, sumo_icon64_xpm);
+    myIcons[ICON_SUMO_MINI] = new FXXPMIcon(a, sumo_icon16_xpm);
+    myIcons[ICON_SUMO_LOGO] = new FXXPMIcon(a, sumo_logo_xpm);
     myIcons[ICON_EMPTY] = new FXXPMIcon(a, empty_xpm);
     myIcons[ICON_OPEN_CONFIG] = new FXXPMIcon(a, fileopen_xpm);
     myIcons[ICON_OPEN_NET] = new FXXPMIcon(a, netopen_xpm);
@@ -231,7 +246,8 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_OPEN_TLSPROGRAMS] = new FXXPMIcon(a, shapeopen_xpm);
     myIcons[ICON_RELOAD] = new FXXPMIcon(a, reload_xpm);
     myIcons[ICON_SAVE] = new FXXPMIcon(a, filesave_xpm);
-    myIcons[ICON_CLOSE] = 0;//new FXXPMIcon(a, close);
+    myIcons[ICON_CLOSE] = new FXXPMIcon(a, empty_xpm);  /** temporal **/
+    myIcons[ICON_HELP] = new FXXPMIcon(a, empty_xpm);   /** temporal **/
     myIcons[ICON_START] = new FXXPMIcon(a, play_xpm);
     myIcons[ICON_STOP] = new FXXPMIcon(a, stop_xpm);
     myIcons[ICON_STEP] = new FXXPMIcon(a, step_xpm);
@@ -308,7 +324,8 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
 
     myIcons[ICON_UNDO] = new FXXPMIcon(a, undo_xpm);
     myIcons[ICON_REDO] = new FXXPMIcon(a, redo_xpm);
-    myIcons[ICON_NETEDIT] = new FXXPMIcon(a, netedit_xpm);
+    myIcons[ICON_NETEDIT] = new FXXPMIcon(a, netedit_icon64_xpm);
+    myIcons[ICON_NETEDIT_MINI] = new FXXPMIcon(a, netedit_icon16_xpm);
     myIcons[ICON_LOCK] = new FXXPMIcon(a, lock_xpm);
     myIcons[ICON_ADD] = new FXXPMIcon(a, add_xpm);
     myIcons[ICON_REMOVE] = new FXXPMIcon(a, remove_xpm);
@@ -317,6 +334,7 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_LANEPEDESTRIAN] = new FXXPMIcon(a, lanepedestrian);
     myIcons[ICON_LANEBUS] = new FXXPMIcon(a, lanebus);
     myIcons[ICON_LANEBIKE] = new FXXPMIcon(a, lanebike);
+    myIcons[ICON_LANEGREENVERGE] = new FXXPMIcon(a, lanegreenverge);
 
     myIcons[ICON_EXT] = new FXXPMIcon(a, ext_xpm);
     myIcons[ICON_CUT_SWELL] = new FXXPMIcon(a, cut_xpm);
@@ -325,12 +343,14 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_MODECONNECTION] = new FXXPMIcon(a, modeconnection_xpm);
     myIcons[ICON_MODECREATEEDGE] = new FXXPMIcon(a, modecreateedge_xpm);
     myIcons[ICON_MODECROSSING] = new FXXPMIcon(a, modecrossing_xpm);
+    myIcons[ICON_MODETAZ] = new FXXPMIcon(a, modetaz_xpm);
     myIcons[ICON_MODEDELETE] = new FXXPMIcon(a, modedelete_xpm);
     myIcons[ICON_MODEINSPECT] = new FXXPMIcon(a, modeinspect_xpm);
     myIcons[ICON_MODEMOVE] = new FXXPMIcon(a, modemove_xpm);
     myIcons[ICON_MODESELECT] = new FXXPMIcon(a, modeselect_xpm);
     myIcons[ICON_MODETLS] = new FXXPMIcon(a, modetrafficlight_xpm);
     myIcons[ICON_MODEPOLYGON] = new FXXPMIcon(a, modepolygon_xpm);
+    myIcons[ICON_MODEPROHIBITION] = new FXXPMIcon(a, modeprohibition_xpm);
 
     myIcons[ICON_CLEANJUNCTIONS] = new FXXPMIcon(a, cleanjunctions_xpm);
     myIcons[ICON_COMPUTEJUNCTIONS] = new FXXPMIcon(a, computejunctions_xpm);
@@ -345,6 +365,7 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_CROSSING] = new FXXPMIcon(a, crossing_xpm);
 
     myIcons[ICON_BUSSTOP] = new FXXPMIcon(a, busstop_xpm);
+    myIcons[ICON_ACCESS] = new FXXPMIcon(a, access_xpm);
     myIcons[ICON_CONTAINERSTOP] = new FXXPMIcon(a, containerstop_xpm);
     myIcons[ICON_CHARGINGSTATION] = new FXXPMIcon(a, chargingstation_xpm);
     myIcons[ICON_PARKINGAREA] = new FXXPMIcon(a, parkingarea_xpm);
@@ -354,11 +375,25 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
     myIcons[ICON_E3] = new FXXPMIcon(a, e3_xpm);
     myIcons[ICON_E3ENTRY] = new FXXPMIcon(a, e3entry_xpm);
     myIcons[ICON_E3EXIT] = new FXXPMIcon(a, e3exit_xpm);
+    myIcons[ICON_E1INSTANT] = new FXXPMIcon(a, e1instant_xpm);
     myIcons[ICON_REROUTER] = new FXXPMIcon(a, rerouter_xpm);
     myIcons[ICON_ROUTEPROBE] = new FXXPMIcon(a, routeprobe_xpm);
     myIcons[ICON_VAPORIZER] = new FXXPMIcon(a, vaporizer_xpm);
     myIcons[ICON_VARIABLESPEEDSIGN] = new FXXPMIcon(a, variablespeedsign_xpm);
     myIcons[ICON_CALIBRATOR] = new FXXPMIcon(a, calibrator_xpm);
+    myIcons[ICON_REROUTERINTERVAL] = new FXXPMIcon(a, rerouterinterval_xpm);
+    myIcons[ICON_VSSSTEP] = new FXXPMIcon(a, vssstep_xpm);
+    myIcons[ICON_CLOSINGREROUTE] = new FXXPMIcon(a, closingreroute_xpm);
+    myIcons[ICON_CLOSINGLANEREROUTE] = new FXXPMIcon(a, closinglanereroute_xpm);
+    myIcons[ICON_DESTPROBREROUTE] = new FXXPMIcon(a, destprobreroute_xpm);
+    myIcons[ICON_PARKINGZONEREROUTE] = new FXXPMIcon(a, parkingzonereroute_xpm);
+    myIcons[ICON_ROUTEPROBREROUTE] = new FXXPMIcon(a, routeprobreroute_xpm);
+    myIcons[ICON_TAZ] = new FXXPMIcon(a, taz_xpm);
+    myIcons[ICON_TAZEDGE] = new FXXPMIcon(a, tazedge_xpm);
+
+    myIcons[ICON_FLOW] = new FXXPMIcon(a, flow_xpm);
+    myIcons[ICON_ROUTE] = new FXXPMIcon(a, route_xpm);
+    myIcons[ICON_VTYPE] = new FXXPMIcon(a, vtype_xpm);
 
     myIcons[ICON_VCLASS_IGNORING] = new FXXPMIcon(a, vclass_ignoring_xpm);
     myIcons[ICON_VCLASS_PRIVATE] = new FXXPMIcon(a, vclass_private_xpm);
@@ -401,7 +436,7 @@ GUIIconSubSys::GUIIconSubSys(FXApp* a) {
 
     // ... and create them
     for (int i = 0; i < ICON_MAX; i++) {
-        if (myIcons[i] != 0) {
+        if (myIcons[i] != nullptr) {
             myIcons[i]->create();
         }
     }
@@ -431,7 +466,7 @@ GUIIconSubSys::getIcon(GUIIcon which) {
 void
 GUIIconSubSys::close() {
     delete myInstance;
-    myInstance = 0;
+    myInstance = nullptr;
 }
 
 

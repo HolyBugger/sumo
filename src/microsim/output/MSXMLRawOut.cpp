@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <utils/geom/GeomHelper.h>
 #include <microsim/MSEdgeControl.h>
@@ -70,7 +66,7 @@ MSXMLRawOut::writeEdge(OutputDevice& of, const MSEdge& edge, SUMOTime timestep) 
     if (!dump) {
         if (MSGlobals::gUseMesoSim) {
             MESegment* seg = MSGlobals::gMesoNet->getSegmentForEdge(edge);
-            while (seg != 0) {
+            while (seg != nullptr) {
                 if (seg->getCarNumber() != 0) {
                     dump = true;
                     break;
@@ -95,7 +91,7 @@ MSXMLRawOut::writeEdge(OutputDevice& of, const MSEdge& edge, SUMOTime timestep) 
         if (dump) {
             if (MSGlobals::gUseMesoSim) {
                 MESegment* seg = MSGlobals::gMesoNet->getSegmentForEdge(edge);
-                while (seg != 0) {
+                while (seg != nullptr) {
                     seg->writeVehicles(of);
                     seg = seg->getNextSegment();
                 }

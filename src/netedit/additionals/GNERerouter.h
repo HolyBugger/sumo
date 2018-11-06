@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include "GNEAdditional.h"
 
@@ -34,7 +30,6 @@
 // ===========================================================================
 
 class GNEEdge;
-class GNERerouterInterval;
 
 // ===========================================================================
 // class definitions
@@ -51,61 +46,35 @@ public:
      * @param[in] viewNet pointer to GNEViewNet of this additional element belongs
      * @param[in] pos position (center) of the rerouter in the map
      * @param[in] edges vector with the edges of rerotuer
+     * @param[in] name Rerouter name
      * @param[in] filename The path to the definition file
      * @param[in] probability The probability for vehicle rerouting
      * @param[in] off Whether the router should be inactive initially
      * @param[in] block movement enable or disable additional movement
      */
-    GNERerouter(const std::string& id, GNEViewNet* viewNet, const Position &pos, const std::vector<GNEEdge*> &edges, 
-                const std::string& filename, double probability, bool off, double timeThreshold, bool blockMovement);
+    GNERerouter(const std::string& id, GNEViewNet* viewNet, const Position& pos, const std::vector<GNEEdge*>& edges, const std::string& name,
+                const std::string& filename, double probability, bool off, double timeThreshold, const std::string& vTypes, bool blockMovement);
 
     /// @brief Destructor
     ~GNERerouter();
 
-    /**@brief writte additional element into a xml file
-     * @param[in] device device in which write parameters of additional element
-     */
-    void writeAdditional(OutputDevice& device) const;
-
     /// @brief open GNERerouterDialog
     void openAdditionalDialog();
-
-    /// @name Functions related with rerouter intervals
-    /// @{
-
-    /// @brief add rerouter interval
-    void addRerouterInterval(GNERerouterInterval* rerouterInterval);
-
-    /// @brief add rerouter interval
-    void removeRerouterInterval(GNERerouterInterval* rerouterInterval);
-
-    /// @brief get rerouter intervals
-    const std::vector<GNERerouterInterval*>& getRerouterIntervals() const;
-
-    /// @brief get number of overlapped intervals
-    int getNumberOfOverlappedIntervals() const;
-
-    /// @brief sort intervals
-    void sortIntervals();
-
-    /// @}
 
     /// @name Functions related with geometry of element
     /// @{
     /**@brief change the position of the element geometry without saving in undoList
-     * @param[in] newPosition new position of geometry
-     * @note should't be called in drawGL(...) functions to avoid smoothness issues
+     * @param[in] offset Position used for calculate new position of geometry without updating RTree
      */
-    void moveGeometry(const Position& oldPos, const Position& offset);
+    void moveGeometry(const Position& offset);
 
     /**@brief commit geometry changes in the attributes of an element after use of moveGeometry(...)
-     * @param[in] oldPos the old position of additional
      * @param[in] undoList The undoList on which to register changes
      */
-    void commitGeometryMoving(const Position& oldPos, GNEUndoList* undoList);
+    void commitGeometryMoving(GNEUndoList* undoList);
 
     /// @brief update pre-computed geometry information
-    void updateGeometry();
+    void updateGeometry(bool updateGrid);
 
     /// @brief Returns position of additional in view
     Position getPositionInView() const;
@@ -115,7 +84,7 @@ public:
     /// @{
     /// @brief Returns the name of the parent object
     /// @return This object's parent id
-    const std::string& getParentName() const;
+    std::string getParentName() const;
 
     /**@brief Draws the object
      * @param[in] s The settings for the current view (may influence drawing)
@@ -145,6 +114,12 @@ public:
      * @return true if the value is valid, false in other case
      */
     bool isValid(SumoXMLAttr key, const std::string& value);
+
+    /// @brief get PopPup ID (Used in AC Hierarchy)
+    std::string getPopUpID() const;
+
+    /// @brief get Hierarchy Name (Used in AC Hierarchy)
+    std::string getHierarchyName() const;
     /// @}
 
 protected:
@@ -163,8 +138,8 @@ protected:
     /// @brief attribute to configure activation time threshold
     double myTimeThreshold;
 
-    /// @brief set with the GNERerouterInterval
-    std::vector<GNERerouterInterval*> myRerouterIntervals;
+    /// @brief optional vehicle types for restricting the rerouter
+    std::string myVTypes;
 
 private:
     /// @brief set attribute after validation

@@ -22,11 +22,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <algorithm>
 #include <netbuild/NBNode.h>
@@ -76,7 +72,7 @@ NGNode::buildNBNode(NBNetBuilder& nb) const {
     if (myAmCenter) {
         return new NBNode(myID, pos, NODETYPE_NOJUNCTION);
     }
-    NBNode* node = 0;
+    NBNode* node = nullptr;
     std::string typeS = OptionsCont::getOptions().isSet("default-junction-type") ?
                         OptionsCont::getOptions().getString("default-junction-type") : "";
 

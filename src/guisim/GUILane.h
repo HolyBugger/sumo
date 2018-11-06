@@ -23,11 +23,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <fx.h>
 #include <string>
@@ -92,7 +88,7 @@ public:
      * @note Inherited from GUIGlObject
      * @return This object's parent id
      */
-    const std::string& getParentName() const {
+    std::string getParentName() const {
         return getEdge().getID();
     }
 
@@ -221,7 +217,7 @@ public:
     void drawBikeMarkings() const;
 
     /// @brief direction indicators for lanes
-    void drawDirectionIndicators() const;
+    void drawDirectionIndicators(double exaggeration) const;
 
     /// @brief draw intersection positions of foe internal lanes with this one
     void debugDrawFoeIntersections() const;
@@ -291,13 +287,16 @@ private:
     /// @brief add intermediate points at segment borders
     PositionVector splitAtSegments(const PositionVector& shape);
 
+    /// @brief get number of vehicles waiting for departure on this lane
+    double getPendingEmits() const;
+
 private:
 
     /// @brief gets the scaling value according to the current scheme index
     double getScaleValue(int activeScheme) const;
 
     /// @brief sets the color according to the current scheme index and some lane function
-    bool setFunctionalColor(int activeScheme, RGBColor& col) const;
+    bool setFunctionalColor(const GUIColorer& c, RGBColor& col) const;
 
     /// @brief sets multiple colors according to the current scheme index and some lane function
     bool setMultiColor(const GUIColorer& c, RGBColor& col) const;
@@ -342,6 +341,9 @@ private:
 private:
     /// The mutex used to avoid concurrent updates of the vehicle buffer
     mutable MFXMutex myLock;
+
+    /// @brief special color to signify alternative coloring scheme
+    static const RGBColor MESO_USE_LANE_COLOR;
 
 
 };

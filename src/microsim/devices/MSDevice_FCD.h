@@ -22,13 +22,9 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
-#include "MSDevice.h"
+#include "MSVehicleDevice.h"
 #include <utils/common/SUMOTime.h>
 
 
@@ -49,7 +45,7 @@ class SUMOVehicle;
  *
  * @see MSDevice
  */
-class MSDevice_FCD : public MSDevice {
+class MSDevice_FCD : public MSVehicleDevice {
 public:
     /** @brief Inserts MSDevice_FCD-options
      * @param[filled] oc The options container to add the options to
@@ -67,24 +63,30 @@ public:
      * @param[in] v The vehicle for which a device may be built
      * @param[filled] into The vector to store the built device in
      */
-    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSDevice*>& into);
+    static void buildVehicleDevices(SUMOVehicle& v, std::vector<MSVehicleDevice*>& into);
 
 public:
     /// @brief Destructor.
     ~MSDevice_FCD();
 
-
-    /// @name Methods called on vehicle movement / state change, overwriting MSDevice
-    /// @{
-
-    bool notifyEnter(SUMOVehicle& /*veh*/, MSMoveReminder::Notification /*reason*/, const MSLane* /*enteredLane*/ ) {
+    bool notifyEnter(SUMOVehicle& /*veh*/, MSMoveReminder::Notification /*reason*/, const MSLane* /*enteredLane*/) {
         return false;
+    }
+
+    void saveState(OutputDevice& /* out */) const {
     }
 
     /// @brief return the name for this type of device
     const std::string deviceName() const {
         return "fcd";
     }
+
+    static const std::set<const MSEdge*>& getEdgeFilter() {
+        return myEdgeFilter;
+    }
+
+    /// @brief resets the edge filter
+    static void cleanup();
 
 private:
     /** @brief Constructor
@@ -95,7 +97,12 @@ private:
     MSDevice_FCD(SUMOVehicle& holder, const std::string& id);
 
 
+    /// @brief spatial filter for FCD output
+    static std::set<const MSEdge*> myEdgeFilter;
+    static bool myEdgeFilterInitialized;
 
+    /// @brief initialize edge filter (once)
+    static void initEdgeFilter();
 
 private:
     /// @brief Invalidated copy constructor.

@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <utils/gui/globjects/GLIncludes.h>
@@ -64,14 +60,19 @@ enum EditMode {
     GNE_MODE_ADDITIONAL,
     ///@brief Mode for editing crossing
     GNE_MODE_CROSSING,
+    ///@brief Mode for editing TAZ
+    GNE_MODE_TAZ,
     ///@brief Mode for editing Polygons
-    GNE_MODE_POLYGON
+    GNE_MODE_POLYGON,
+    ///@brief Mode for editing connection prohibits
+    GNE_MODE_PROHIBITION
 };
 
 // ===========================================================================
 // class declarations
 // ===========================================================================
 
+class GNEChange;
 class GNENet;
 class GNENetElement;
 class GNEJunction;
@@ -87,7 +88,9 @@ class GNEPOI;
 class GNEFrame;
 class GNENetElement;
 class GNECrossing;
+class GNEInternalLane;
 class GNEAttributeCarrier;
+class GNETAZ;
 
 // ===========================================================================
 // class definitions
@@ -101,6 +104,78 @@ class GNEViewNet : public GUISUMOAbstractView {
     FXDECLARE(GNEViewNet)
 
 public:
+
+    /// @brief class used to group all variables related with objects under cursor after a click over view
+    class ObjectsUnderCursor {
+    public:
+        /// @brief constructor
+        ObjectsUnderCursor();
+
+        /// @brief update objects under cursor (Called only in onLeftBtnPress(...) function)
+        void updateObjectUnderCursor(GUIGlID glIDObject, GNEPoly* editedPolyShape, FXEvent* ev);
+
+        /// @brief swap lane to edge
+        void swapLane2Edge();
+
+        /// @brief check if SHIFT key was pressed during click
+        bool shiftKeyPressed() const;
+
+        /// @brief check if CONTROL key was pressed during click
+        bool controlKeyPressed() const;
+
+        /// @brief information of event of onLeftBtnPress
+        FXEvent* eventInfo;
+
+        /// @brief GUI GL ID
+        GUIGlID glID;
+
+        /// @brief GUI GL object type
+        GUIGlObjectType glType;
+
+        /// @brief attribute carrier
+        GNEAttributeCarrier* attributeCarrier;
+
+        /// @brief net element
+        GNENetElement* netElement;
+
+        /// @brief additional element
+        GNEAdditional* additional;
+
+        /// @brief shape element (Poly and POIs)
+        GNEShape* shape;
+
+        /// @brief junction
+        GNEJunction* junction;
+
+        /// @brief edge
+        GNEEdge* edge;
+
+        /// @brief lane
+        GNELane* lane;
+
+        /// @brief crossing
+        GNECrossing* crossing;
+
+        /// @brief connection
+        GNEConnection* connection;
+
+        /// @brief TAZ element (needed because uses a shape instead a position)
+        GNETAZ* taz;
+
+        /// @brief POI
+        GNEPOI* poi;
+
+        /// @brief Poly
+        GNEPoly* poly;
+
+    private:
+        /// @brief Invalidated copy constructor.
+        ObjectsUnderCursor(const ObjectsUnderCursor&) = delete;
+
+        /// @brief Invalidated assignment operator.
+        ObjectsUnderCursor& operator=(const ObjectsUnderCursor&) = delete;
+    };
+
     /* @brief constructor
      * @param[in] tmpParent temporal FXFrame parent so that we can add items to view area in the desired order
      * @param[in] actualParent FXFrame parent of GNEViewNet
@@ -121,6 +196,15 @@ public:
 
     /// @brief builds the view toolbars
     virtual void buildViewToolBars(GUIGlChildWindow&);
+
+    /// @brief get AttributeCarriers in Boundary
+    std::set<std::pair<std::string, GNEAttributeCarrier*> > getAttributeCarriersInBoundary(const Boundary &boundary, bool forceSelectEdges = false);
+
+    /** @brief Builds an entry which allows to (de)select the object
+     * @param ret The popup menu to add the entry to
+     * @param AC AttributeCarrier that will be select/unselected
+     */
+    void buildSelectionACPopupEntry(GUIGLObjectPopupMenu* ret, GNEAttributeCarrier* AC);
 
     /// @brief set color scheme
     bool setColorScheme(const std::string& name);
@@ -181,8 +265,15 @@ public:
     /// @brief called when user press the button for crossing mode
     long onCmdSetModeCrossing(FXObject*, FXSelector, void*);
 
+    /// @brief called when user press the button for TAZ mode
+    long onCmdSetModeTAZ(FXObject*, FXSelector, void*);
+
     /// @brief called when user press the button for polygon mode
     long onCmdSetModePolygon(FXObject*, FXSelector, void*);
+
+    /// @brief called when user press the button for polygon mode
+    long onCmdSetModeProhibition(FXObject*, FXSelector, void*);
+
     /// @}
 
     /// @brief split edge at cursor position
@@ -236,38 +327,53 @@ public:
     /// @brief duplicate selected lane
     long onCmdDuplicateLane(FXObject*, FXSelector, void*);
 
+    /// @brief reset custom shapes of selected lanes
+    long onCmdResetLaneCustomShape(FXObject*, FXSelector, void*);
+
     /// @brief restrict lane to pedestrians
-    long onCmdRestrictLaneSidewalk(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdRestrictLaneSidewalk(FXObject*, FXSelector, void*);
 
     /// @brief restrict lane to bikes
-    long onCmdRestrictLaneBikelane(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdRestrictLaneBikelane(FXObject*, FXSelector, void*);
 
     /// @brief restrict lane to buslanes
-    long onCmdRestrictLaneBuslane(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdRestrictLaneBuslane(FXObject*, FXSelector, void*);
+
+    /// @brief restrict lane to all vehicles
+    long onCmdRestrictLaneGreenVerge(FXObject*, FXSelector, void*);
 
     /// @brief Add restricted lane for pedestrians
-    long onCmdAddRestrictedLaneSidewalk(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdAddRestrictedLaneSidewalk(FXObject*, FXSelector, void*);
 
     /// @brief Add restricted lane for bikes
-    long onCmdAddRestrictedLaneBikelane(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdAddRestrictedLaneBikelane(FXObject*, FXSelector, void*);
 
     /// @brief Add restricted lane for buses
-    long onCmdAddRestrictedLaneBuslane(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdAddRestrictedLaneBuslane(FXObject*, FXSelector, void*);
+
+    /// @brief Add restricted lane for all vehicles
+    long onCmdAddRestrictedLaneGreenVerge(FXObject*, FXSelector, void*);
 
     /// @brief remove restricted lane for pedestrians
-    long onCmdRemoveRestrictedLaneSidewalk(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdRemoveRestrictedLaneSidewalk(FXObject*, FXSelector, void*);
 
     /// @brief remove restricted lane for bikes
-    long onCmdRemoveRestrictedLaneBikelane(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdRemoveRestrictedLaneBikelane(FXObject*, FXSelector, void*);
 
     /// @brief remove restricted lane for bus
-    long onCmdRemoveRestrictedLaneBuslane(FXObject*, FXSelector typeOfTransformation, void*);
+    long onCmdRemoveRestrictedLaneBuslane(FXObject*, FXSelector, void*);
+
+    /// @brief remove restricted lane for all vehicles
+    long onCmdRemoveRestrictedLaneGreenVerge(FXObject*, FXSelector, void*);
 
     /// @brief open additional dialog
     long onCmdOpenAdditionalDialog(FXObject*, FXSelector, void*);
 
     /// @brief edit junction shape
     long onCmdEditJunctionShape(FXObject*, FXSelector, void*);
+
+    /// @brief reset junction shape
+    long onCmdResetJunctionShape(FXObject*, FXSelector, void*);
 
     /// @brief replace node by geometry
     long onCmdReplaceJunction(FXObject*, FXSelector, void*);
@@ -295,6 +401,12 @@ public:
 
     /// @brief toogle show bubbles
     long onCmdToogleShowBubbles(FXObject*, FXSelector, void*);
+
+    /// @brief select AC under cursor
+    long onCmdAddSelected(FXObject*, FXSelector, void*);
+
+    /// @brief unselect AC under cursor
+    long onCmdRemoveSelected(FXObject*, FXSelector, void*);
 
     /// @brief toogle show grid
     long onCmdShowGrid(FXObject*, FXSelector, void*);
@@ -331,6 +443,12 @@ public:
     /// @brief get grid button
     FXMenuCheck* getMenuCheckShowGrid() const;
 
+    /// @brief get AttributeCarrier under cursor
+    const GNEAttributeCarrier* getACUnderCursor() const;
+
+    /// @brief set attributeCarrier under cursor
+    void setACUnderCursor(const GNEAttributeCarrier* AC);
+
     /// @brief check if lock icon should be visible
     bool showLockIcon() const;
 
@@ -365,13 +483,18 @@ public:
     void stopEditCustomShape();
 
     /// @brief begin move selection
-    void begingMoveSelection(GNEAttributeCarrier* originAC, const Position& originPosition);
+    void beginMoveSelection(GNEAttributeCarrier* originAC, const Position& originPosition);
 
     /// @brief move selection
     void moveSelection(const Position& offset);
 
     /// @brief finish moving selection
     void finishMoveSelection();
+
+    /// @brief enable drawing of the reference square when testing
+    void enableReferenceSquare() {
+        myTestingMode.drawRefSquare = true;
+    }
 
 protected:
     /// @brief FOX needs this
@@ -392,7 +515,8 @@ private:
             edgeToMove(nullptr),
             polyToMove(nullptr),
             poiToMove(nullptr),
-            additionalToMove(nullptr) {}
+            additionalToMove(nullptr),
+            tazToMove(nullptr) {}
 
         /// @brief the Junction to be moved.
         GNEJunction* junctionToMove;
@@ -403,11 +527,14 @@ private:
         /// @brief the poly of which geometry is being moved
         GNEPoly* polyToMove;
 
-        /// @brief the poi which is being moved
+        /// @brief the poi which position is being moved
         GNEPOI* poiToMove;
 
-        /// @brief the stoppingPlace element which shape is being moved
+        /// @brief the additional element which position is being moved
         GNEAdditional* additionalToMove;
+
+        /// @brief the TAZ element which their Shape is being moved (it's the only additional with a shape instead a position)
+        GNETAZ* tazToMove;
     };
 
     /// @brief struct used to group all variables related with movement of single elements
@@ -426,7 +553,6 @@ private:
 
         /// @brief Shape of elements before moving (needed for commmit shape changes)
         PositionVector movingOriginalShape;
-        PositionVector movingOriginalShape2;
 
         /// @brief bool to indicate that startPos are being moved
         bool movingStartPos;
@@ -436,90 +562,22 @@ private:
         int movingIndexShape;
     };
 
-    /// @brief class used to group all variables related with objects under cursor after a click over view
-    class ObjectsUnderCursor {
-    public:
-        /// @brief constructor
-        ObjectsUnderCursor(): 
-            eventInfo(nullptr),
-            glID(0),
-            glType(GLO_NETWORK),
-            attributeCarrier(nullptr),
-            netElement(nullptr),
-            additional(nullptr),
-            shape(nullptr),
-            junction(nullptr),
-            edge(nullptr),
-            lane(nullptr),
-            crossing(nullptr),
-            connection(nullptr),
-            poi(nullptr),
-            poly(nullptr) {}
-
-        /// @brief update objects under cursor (Called only in onLeftBtnPress(...) function)
-        void updateObjectUnderCursor(GUIGlID glIDObject, GNEPoly* editedPolyShape, FXEvent* ev);
-
-        /// @brief swap lane to edge
-        void swapLane2Edge();
-
-        /// @brief check if SHIFT key was pressed during click
-        bool shiftKeyPressed() const;
-
-        /// @brief check if CONTROL key was pressed during click
-        bool controlKeyPressed() const;
-
-        /// @brief information of event of onLeftBtnPress
-        FXEvent* eventInfo;
-
-        /// @brief GUI GL ID
-        GUIGlID glID;
-
-        /// @brief GUI GL object type
-        GUIGlObjectType glType;
-
-        /// @brief attribute carrier
-        GNEAttributeCarrier* attributeCarrier;
-
-        /// @brief net element
-        GNENetElement* netElement;
-
-        /// @brief additional element
-        GNEAdditional* additional;
-
-        /// @brief shape element (Poly and POIs)
-        GNEShape* shape;
-
-        /// @brief junction
-        GNEJunction* junction;
-
-        /// @brief edge
-        GNEEdge* edge;
-
-        /// @brief lane
-        GNELane* lane;
-
-        /// @brief crossing
-        GNECrossing* crossing;
-
-        /// @brief connection
-        GNEConnection* connection;
-
-        /// @brief POI
-        GNEPOI* poi;
-
-        /// @brief Poly
-        GNEPoly* poly;
-    };
-
     /// @brief struct used to group all variables related with selecting using a square or polygon
     /// @note in the future the variables used for selecting throught a polygon will be placed here
     struct SelectingArea {
+    public:
         /// @brief default constructor
         SelectingArea() :
             selectingUsingRectangle(false) {}
 
-        /// @brief Process Selection
-        void processSelection(GNEViewNet *viewNet, bool shiftKeyPressed);
+        /// @brief process rectangle Selection
+        void processRectangleSelection(GNEViewNet* viewNet, bool shiftKeyPressed);
+
+        /// @brief process rectangle Selection (only limited to Edges)
+        std::vector<GNEEdge*> processEdgeRectangleSelection(GNEViewNet* viewNet, bool shiftKeyPressed);
+
+        /// @brief process shape selection
+        void processShapeSelection(GNEViewNet* viewNet, const PositionVector &shape);
 
         /// @brief whether we have started rectangle-selection
         bool selectingUsingRectangle;
@@ -529,18 +587,32 @@ private:
 
         /// @brief second corner of the rectangle-selection
         Position selectionCorner2;
+
+        /// @brief inform about selection size
+        std::string reportDimensions();
+
+        /// @brief draw rectangle selection
+        void drawRectangleSelection(const RGBColor& color) const;
+
+    private:
+        /// @brief Process boundary Selection
+        void processBoundarySelection(GNEViewNet* viewNet, Boundary boundary);
     };
 
     /// @brief struct used to group all variables related with testing
-    struct testingMode {
+    struct TestingMode {
         /// @brief default constructor
-        testingMode() :
+        TestingMode() :
             testingEnabled(OptionsCont::getOptions().getBool("gui-testing")),
+            drawRefSquare(false),
             testingWidth(0),
             testingHeight(0) {}
 
         /// @brief flag to enable or disable testing mode
         bool testingEnabled;
+
+        /// @brief flag to enable or disable magenta reference square
+        bool drawRefSquare;
 
         /// @brief Width of viewNet in testing mode
         int testingWidth;
@@ -567,6 +639,9 @@ private:
     /// @brief menu check to show connections
     FXMenuCheck* myMenuCheckShowConnections;
 
+    /// @brief menu check to hide connections in connect mode
+    FXMenuCheck* myMenuCheckHideConnections;
+
     /// @brief menu check to extend to edge nodes
     FXMenuCheck* myMenuCheckExtendToEdgeNodes;
 
@@ -581,6 +656,9 @@ private:
 
     /// @brief flag to check if select edges is enabled
     bool mySelectEdges;
+
+    /// @brief flag to check if shift key is pressed (can be changed after Key Press/Released and mouse Move)
+    bool myShiftKeyPressed;
 
     /// @name the state-variables of the create-edge state-machine
     // @{
@@ -610,14 +688,14 @@ private:
     /// @brief variable use to save pointers to moved elements
     MovedItems myMovedItems;
 
-    /// @brief variable used to save variables related with movement of single elements 
+    /// @brief variable used to save variables related with movement of single elements
     MoveSingleElementValues myMoveSingleElementValues;
 
     /// @brief variable used to save variables related with selecting areas
     SelectingArea mySelectingArea;
 
     /// @brief variable used to save variables related with testing mode
-    testingMode myTestingMode;
+    TestingMode myTestingMode;
 
     /// @brief whether a selection is being moved
     bool myMovingSelection;
@@ -629,11 +707,10 @@ private:
     /// @brief Selected Edges that are being moved < Edge, PositionVector >
     std::map<GNEEdge*, PositionVector> myOriginShapesMovedEntireShapes;
 
-    struct MovingEdges{
+    struct MovingEdges {
         PositionVector originalShape;
         int index;
         Position originalPosition;
-        bool inverted;
     };
 
     std::map<GNEEdge*, MovingEdges> myOriginShapesMovedPartialShapes;
@@ -671,8 +748,15 @@ private:
     /// @brief chekable button for edit mode crossing
     MFXCheckableButton* myEditModeCrossing;
 
+    /// @brief chekable button for edit mode TAZ
+    MFXCheckableButton* myEditModeTAZ;
+
     /// @brief chekable button for edit mode polygon
     MFXCheckableButton* myEditModePolygon;
+
+    /// @brief checkable button for edit mode polygon
+    MFXCheckableButton* myEditModeProhibition;
+
     /// @}
 
     /// @brief since we cannot switch on strings we map the mode names to an enum
@@ -686,6 +770,9 @@ private:
 
     /// @brief a reference to the undolist maintained in the application
     GNEUndoList* myUndoList;
+
+    /// @brief current AttributeCarrier under Mouse position
+    const GNEAttributeCarrier* myACUnderCursor;
 
     /// @name variables for edit shapes
     /// @{
@@ -768,6 +855,16 @@ private:
     /// @brief Auxiliar function used by onLeftBtnPress(...)
     void processClick(FXEvent* e, void* data);
 
+    /// @brief draw functions
+    /// @{
+
+    /// @brief draw connections between lane candidates during selecting lane mode in Additional mode
+    void drawLaneCandidates() const;
+
+    /// @brief draw temporal polygon  shape in Polygon Mode
+    void drawTemporalDrawShape() const;
+    /// @}
+   
     /// @brief Invalidated copy constructor.
     GNEViewNet(const GNEViewNet&) = delete;
 

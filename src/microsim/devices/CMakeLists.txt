@@ -3,6 +3,8 @@ set(microsim_devices_STAT_SRCS
    MSDevice.h
    MSDevice_SSM.cpp
    MSDevice_SSM.h
+   MSDevice_DriverState.cpp
+   MSDevice_DriverState.h
    MSDevice_ToC.cpp
    MSDevice_ToC.h
    MSDevice_BTreceiver.cpp
@@ -27,6 +29,12 @@ set(microsim_devices_STAT_SRCS
    MSDevice_Bluelight.h
    MSDevice_FCD.cpp
    MSDevice_FCD.h
+   MSPersonDevice.h
+   MSPersonDevice_Routing.cpp
+   MSPersonDevice_Routing.h
+   MSRoutingEngine.cpp
+   MSRoutingEngine.h
+   MSVehicleDevice.h
 )
 
 add_library(microsim_devices STATIC ${microsim_devices_STAT_SRCS})

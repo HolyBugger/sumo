@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include <iterator>
@@ -56,7 +52,7 @@ bool RORouteDef::myUsingJTRR(false);
 RORouteDef::RORouteDef(const std::string& id, const int lastUsed,
                        const bool tryRepair, const bool mayBeDisconnected) :
     Named(StringUtils::convertUmlaute(id)),
-    myPrecomputed(0), myLastUsed(lastUsed), myTryRepair(tryRepair), myMayBeDisconnected(mayBeDisconnected) {
+    myPrecomputed(nullptr), myLastUsed(lastUsed), myTryRepair(tryRepair), myMayBeDisconnected(mayBeDisconnected) {
 }
 
 
@@ -87,7 +83,7 @@ RORouteDef::addAlternativeDef(const RORouteDef* alt) {
 RORoute*
 RORouteDef::buildCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router,
                               SUMOTime begin, const ROVehicle& veh) const {
-    if (myPrecomputed == 0) {
+    if (myPrecomputed == nullptr) {
         preComputeCurrentRoute(router, begin, veh);
     }
     return myPrecomputed;
@@ -125,7 +121,7 @@ RORouteDef::preComputeCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router
                     WRITE_WARNING("Repaired route of vehicle '" + veh.getID() + "'.");
                 }
                 myNewRoute = true;
-                RGBColor* col = myAlternatives[0]->getColor() != 0 ? new RGBColor(*myAlternatives[0]->getColor()) : 0;
+                RGBColor* col = myAlternatives[0]->getColor() != nullptr ? new RGBColor(*myAlternatives[0]->getColor()) : nullptr;
                 myPrecomputed = new RORoute(myID, 0, myAlternatives[0]->getProbability(), newEdges, col, myAlternatives[0]->getStops());
             } else {
                 myPrecomputed = myAlternatives[0];
@@ -154,7 +150,7 @@ RORouteDef::preComputeCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router
         if (cheapest >= 0) {
             myPrecomputed = myAlternatives[cheapest];
         } else {
-            RGBColor* col = myAlternatives[0]->getColor() != 0 ? new RGBColor(*myAlternatives[0]->getColor()) : 0;
+            RGBColor* col = myAlternatives[0]->getColor() != nullptr ? new RGBColor(*myAlternatives[0]->getColor()) : nullptr;
             myPrecomputed = new RORoute(myID, 0, 1, edges, col, myAlternatives[0]->getStops());
             myNewRoute = true;
         }
@@ -172,7 +168,7 @@ RORouteDef::repairCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router,
     if (initialSize == 1) {
         if (myUsingJTRR) {
             /// only ROJTRRouter is supposed to handle this type of input
-            router.compute(oldEdges.front(), 0, &veh, begin, newEdges);
+            router.compute(oldEdges.front(), nullptr, &veh, begin, newEdges);
         } else {
             newEdges = oldEdges;
         }
@@ -181,7 +177,7 @@ RORouteDef::repairCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router,
             // option repair.from is in effect
             const std::string& frontID = oldEdges.front()->getID();
             for (ConstROEdgeVector::iterator i = oldEdges.begin(); i != oldEdges.end();) {
-                if ((*i)->prohibits(&veh)) {
+                if ((*i)->prohibits(&veh) || (*i)->isInternal()) {
                     i = oldEdges.erase(i);
                 } else {
                     WRITE_MESSAGE("Changing invalid starting edge '" + frontID
@@ -198,7 +194,7 @@ RORouteDef::repairCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router,
             // option repair.to is in effect
             const std::string& backID = oldEdges.back()->getID();
             // oldEdges cannot get empty here, otherwise we would have left the stage when checking "from"
-            while (oldEdges.back()->prohibits(&veh)) {
+            while (oldEdges.back()->prohibits(&veh) || oldEdges.back()->isInternal()) {
                 oldEdges.pop_back();
             }
             WRITE_MESSAGE("Changing invalid destination edge '" + backID
@@ -208,7 +204,7 @@ RORouteDef::repairCurrentRoute(SUMOAbstractRouter<ROEdge, ROVehicle>& router,
         assert(mandatory.size() >= 2);
         // removed prohibited
         for (ConstROEdgeVector::iterator i = oldEdges.begin(); i != oldEdges.end();) {
-            if ((*i)->prohibits(&veh)) {
+            if ((*i)->prohibits(&veh) || (*i)->isInternal()) {
                 // no need to check the mandatories here, this was done before
                 i = oldEdges.erase(i);
             } else {
@@ -375,7 +371,7 @@ RORouteDef*
 RORouteDef::copyOrigDest(const std::string& id) const {
     RORouteDef* result = new RORouteDef(id, 0, true, true);
     RORoute* route = myAlternatives[0];
-    RGBColor* col = route->getColor() != 0 ? new RGBColor(*route->getColor()) : 0;
+    RGBColor* col = route->getColor() != nullptr ? new RGBColor(*route->getColor()) : nullptr;
     ConstROEdgeVector edges;
     edges.push_back(route->getFirst());
     edges.push_back(route->getLast());
@@ -389,7 +385,7 @@ RORouteDef::copy(const std::string& id, const SUMOTime stopOffset) const {
     RORouteDef* result = new RORouteDef(id, 0, myTryRepair, myMayBeDisconnected);
     for (std::vector<RORoute*>::const_iterator i = myAlternatives.begin(); i != myAlternatives.end(); i++) {
         RORoute* route = *i;
-        RGBColor* col = route->getColor() != 0 ? new RGBColor(*route->getColor()) : 0;
+        RGBColor* col = route->getColor() != nullptr ? new RGBColor(*route->getColor()) : nullptr;
         RORoute* newRoute = new RORoute(id, 0, 1, route->getEdgeVector(), col, route->getStops());
         newRoute->addStopOffset(stopOffset);
         result->addLoadedAlternative(newRoute);

@@ -21,11 +21,7 @@
 // ===========================================================================
 // included modules
 // ===========================================================================
-#ifdef _MSC_VER
-#include <windows_config.h>
-#else
 #include <config.h>
-#endif
 
 #include <string>
 #include "GUIPolygon.h"
@@ -44,12 +40,11 @@
 // ===========================================================================
 GUIPolygon::GUIPolygon(const std::string& id, const std::string& type,
                        const RGBColor& color, const PositionVector& shape, bool geo,
-                       bool fill, double layer, double angle, const std::string& imgFile,
+                       bool fill, double lineWidth, double layer, double angle, const std::string& imgFile,
                        bool relativePath):
-    SUMOPolygon(id, type, color, shape, geo, fill, layer, angle, imgFile, relativePath),
+    SUMOPolygon(id, type, color, shape, geo, fill, lineWidth, layer, angle, imgFile, relativePath),
     GUIGlObject_AbstractAdd(GLO_POLYGON, id),
-    myDisplayList(0),
-    myLineWidth(1) // m
+    myDisplayList(0)
 
 {}
 
@@ -64,7 +59,7 @@ GUIPolygon::getPopUpMenu(GUIMainWindow& app,
     GUIGLObjectPopupMenu* ret = new GUIGLObjectPopupMenu(app, parent, *this);
     buildPopupHeader(ret, app, false);
     FXString t(getShapeType().c_str());
-    new FXMenuCommand(ret, "(" + t + ")", 0, 0, 0);
+    new FXMenuCommand(ret, "(" + t + ")", nullptr, nullptr, 0);
     new FXMenuSeparator(ret);
     buildCenterPopupEntry(ret);
     buildNameCopyPopupEntry(ret);
@@ -79,7 +74,7 @@ GUIParameterTableWindow*
 GUIPolygon::getParameterWindow(GUIMainWindow& app,
                                GUISUMOAbstractView&) {
     GUIParameterTableWindow* ret =
-        new GUIParameterTableWindow(app, *this, 3 + (int)getMap().size());
+        new GUIParameterTableWindow(app, *this, 3 + (int)getParametersMap().size());
     // add items
     ret->mkItem("type", false, getShapeType());
     ret->mkItem("layer", false, toString(getShapeLayer()));
@@ -163,12 +158,7 @@ GUIPolygon::drawGL(const GUIVisualizationSettings& s) const {
     glPushMatrix();
     glTranslated(0, 0, getShapeLayer());
     glRotated(-getShapeNaviDegree(), 0, 0, 1);
-    // set color depending of selection
-    if (gSelected.isSelected(GLO_POLYGON, getGlID())) {
-        GLHelper::setColor(RGBColor(0, 0, 204));
-    } else {
-        GLHelper::setColor(getShapeColor());
-    }
+    setColor(s);
 
     int textureID = -1;
     if (getFill()) {
@@ -245,7 +235,7 @@ GUIPolygon::performTesselation(double lineWidth) const {
         //gluTessCallback(tobj, GLU_TESS_ERROR, (GLvoid (APIENTRY*) ()) &errorCallback);
         gluTessCallback(tobj, GLU_TESS_COMBINE, (GLvoid(APIENTRY*)()) &combineCallback);
         gluTessProperty(tobj, GLU_TESS_WINDING_RULE, GLU_TESS_WINDING_ODD);
-        gluTessBeginPolygon(tobj, NULL);
+        gluTessBeginPolygon(tobj, nullptr);
         gluTessBeginContour(tobj);
         for (int i = 0; i != (int)myShape.size(); ++i) {
             points[3 * i]  = myShape[(int) i].x();
@@ -281,6 +271,22 @@ GUIPolygon::storeTesselation(double lineWidth) const {
     glEndList();
 }
 
+
+void
+GUIPolygon::setColor(const GUIVisualizationSettings& s) const {
+    const GUIColorer& c = s.polyColorer;
+    const int active = c.getActive();
+    if (s.netedit && active != 1 && gSelected.isSelected(GLO_POLYGON, getGlID())) {
+        // override with special colors (unless the color scheme is based on selection)
+        GLHelper::setColor(RGBColor(0, 0, 204));
+    } else if (active == 0) {
+        GLHelper::setColor(getShapeColor());
+    } else if (active == 1) {
+        GLHelper::setColor(c.getScheme().getColor(gSelected.isSelected(GLO_POLYGON, getGlID())));
+    } else {
+        GLHelper::setColor(c.getScheme().getColor(0));
+    }
+}
 
 /****************************************************************************/
 
